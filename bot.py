@@ -89,10 +89,10 @@ class Onigiri(commands.Bot):
 
     async def refresh(self, guild_id, channel_id=None, talent_name=None):
         print(f"{log_time()}Refreshing guild {guild_id}.")
-        guild = self.db.get_guild(guild_id)
-        if not guild:
+        if not self.get_guild(guild_id):
             print(f"{log_time()}This instance of the bot is not in this guild.")
             return
+        guild = self.db.get_guild(guild_id)
         events = self.db.get_guild_events(guild_id)
         channel = self.get_channel(channel_id or guild.get("schedule_channel_id"))
         if not channel:
@@ -276,7 +276,10 @@ class Onigiri(commands.Bot):
     @tasks.loop(minutes=5)
     async def loop_refresh(self):
         for guild in self.db.get_all_enabled_guilds():
-            await self.refresh(guild.get("guild_id"))
+            try:
+                await self.refresh(guild.get("guild_id"))
+            except discord.Forbidden:
+                print(f"{log_time()}The message in {guild.get('id')} does not belong to this instance of the bot.")
 
     @loop_refresh.before_loop
     async def before_loop(self):
