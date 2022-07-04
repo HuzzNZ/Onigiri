@@ -385,7 +385,7 @@ if __name__ == "__main__":
             event_id: str = kwargs.get("event_id", "")
             url: str = kwargs.get("url")
             if url:
-                if not url.startswith("http://") or url.startswith("https://"):
+                if not (url.startswith("http://") or url.startswith("https://")):
                     return await interaction.response.send_message(
                         f"{NO}**Invalid URL!** URLs should begin with `http://` or `https://`.", ephemeral=True)
                 yt_id = validate_yt(url)
