@@ -90,7 +90,8 @@ class Onigiri(commands.Bot):
     async def refresh(self, guild_id, channel_id=None, talent_name=None):
         print(f"{log_time()}Refreshing guild {guild_id}.")
         if not self.get_guild(guild_id):
-            print(f"{log_time()}This instance of the bot is not in this guild.")
+            print(f"{log_time()}    ↳ {guild_id}: This instance is not in the guild.")
+            print(f"{log_time()}")
             return
         guild = self.db.get_guild(guild_id)
         events = self.db.get_guild_events(guild_id)
@@ -290,8 +291,8 @@ class Onigiri(commands.Bot):
             try:
                 await self.refresh(guild.get("guild_id"))
             except discord.Forbidden:
-                print(f"{log_time()}The message in {guild.get('guild_id')} "
-                      f"does not belong to this instance of the bot.")
+                print(f"{log_time()}    ↳ {guild.get('guild_id')}: Message does not belong to this instance.")
+                print(f"{log_time()}")
 
     @loop_refresh.before_loop
     async def before_loop(self):
@@ -633,6 +634,22 @@ if __name__ == "__main__":
             f"{YES}The talent has been set to **{name}**." if name else
             f"{YES}The talent has been **reset**.", ephemeral=True)
         await interaction.client.refresh(interaction.guild.id)
+
+
+    @tree.command(name="server-info", description="This server's configuration at a glance.")
+    @app_commands.guild_only()
+    @app_commands.default_permissions(manage_channels=True)
+    @check_guild_perms
+    @app_commands.check(manage_channels)
+    async def server_info(interaction: discord.Interaction):
+        guild = interaction.client.db.get_guild(interaction.guild.id)
+        msg = f"__**{interaction.guild.name}'s {interaction.client.user.mention} Configuration**__\n\n" \
+              f"> **Enabled**: {YES if guild.get('enabled') else NO}\n> \n" \
+              f"> **Talent Name**: {guild.get('talent', '`None`')}\n> \n" \
+              f"> **Description**: {guild.get('description', '`None`')}\n> \n" \
+              f"> **Schedule Channel**: <#{guild.get('schedule_channel_id')}>\n" \
+              f"> **Schedule Message ID**: `{guild.get('schedule_message_id')}`"
+        await interaction.response.send_message(content=msg, ephemeral=True)
 
 
     @app_commands.default_permissions(manage_channels=True)
