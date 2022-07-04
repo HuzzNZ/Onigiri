@@ -109,8 +109,7 @@ class Onigiri(commands.Bot):
             else:
                 headline = "__**A schedule, maintained by this server**__:"
             return headline + "\n(Events with Discord Timestamps are in your **local timezone**," \
-                              f" all other times are in **JST**.)\n\n" \
-                              f"> *Last refreshed <t:{int(datetime.now().timestamp())}:f>*\n"
+                              f" all other times are in **JST**.)\n"
 
         def separate_events(event_list):
             future_list = []
@@ -238,6 +237,11 @@ class Onigiri(commands.Bot):
             return contents
 
         content_list = [get_headline(talent_name)]
+
+        if guild.get("description"):
+            content_list.append(f"> {guild.get('description')}\n")
+
+        content_list += [f"> *Last refreshed <t:{int(datetime.now().timestamp())}:f>*\n"]
 
         if events:
             past, future, unspecified = separate_events(events)
@@ -452,8 +456,12 @@ if __name__ == "__main__":
             raise NoGuildFound
         try:
             guild_channel = interaction.client.get_channel(guild.get("schedule_channel_id"))
-            perms = guild_channel.permissions_for(interaction.user)
-            return perms.manage_messages
+            perms = guild_channel.permissions_for(interaction.user).manage_messages
+            if not perms:
+                if guild.get("editor_role_id"):
+                    editor_role = interaction.guild.get_role(guild.get("editor_role_id"))
+                    perms = editor_role in interaction.user.roles
+            return perms
         except discord.NotFound:
             return False
 
@@ -500,11 +508,10 @@ if __name__ == "__main__":
     @tree.command(description="Must be run at least once! "
                               "Sets up the bot, or edits configuration for the server.")
     @app_commands.describe(channel="The channel to keep the schedule message in.")
-    @app_commands.describe(name="The name of talent that the schedule is for.")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
     @app_commands.check(manage_channels)
-    async def setup(interaction: discord.Interaction, channel: discord.TextChannel, name: str = None):
+    async def setup(interaction: discord.Interaction, channel: discord.TextChannel):
         await interaction.response.defer(ephemeral=True)
 
         guild_id = interaction.guild.id
@@ -513,13 +520,13 @@ if __name__ == "__main__":
         current_channel = interaction.client.db.get_guild(guild_id).get("schedule_channel_id")
         if not current_channel or current_channel != schedule_channel_id:
             try:
-                message = await interaction.client.refresh(guild_id, schedule_channel_id, name)
+                message = await interaction.client.refresh(guild_id, schedule_channel_id)
             except discord.Forbidden:
                 await interaction.followup.send(
                     f"{NO}**Setup failed.** Check that the bot has the permissions to **view**, "
                     "and **send messages** in the correct channel.")
                 return
-            interaction.client.db.add_or_edit_guild(guild_id, schedule_channel_id, message.id, name)
+            interaction.client.db.add_or_edit_guild(guild_id, schedule_channel_id, message.id)
             await interaction.followup.send(
                 f"{YES}**The schedule message channel has been set to <#{schedule_channel_id}>**, "
                 f"and a new message was created.\n> <{message.jump_url}>")
@@ -564,13 +571,56 @@ if __name__ == "__main__":
         await interaction.client.refresh(interaction.guild.id)
 
 
-    @tree.command(description="Sets the name of the talent the schedule is for.")
-    @app_commands.describe(name="The name of talent that the schedule is for.")
+    @tree.command(name="set-editor", description="Sets a role that can access commands to edit the schedule.")
+    @app_commands.describe(editor="The role to set as an editor.")
+    @app_commands.rename(editor="role")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
     @check_guild_perms
     @app_commands.check(manage_channels)
-    async def talent(interaction: discord.Interaction, name: str = ""):
+    async def set_editor(interaction: discord.Interaction, editor: discord.Role = None):
+        interaction.client.db.edit_guild_editor(interaction.guild.id, editor.id)
+        await interaction.response.send_message(
+            f"{YES}The schedule editor role has been set to **{editor.name}**." if editor else
+            f"{YES}The schedule editor role has been **reset**.", ephemeral=True)
+
+
+    @tree.command(name="set-description", description="Sets a description that appears on top of the schedule.")
+    @app_commands.describe(description="The description to set. "
+                                       "Formatting will not work, but emojis will. (Max 350 characters)")
+    @app_commands.guild_only()
+    @app_commands.default_permissions(manage_channels=True)
+    @check_guild_perms
+    @app_commands.check(manage_channels)
+    async def set_description(interaction: discord.Interaction, description: str = ""):
+        if len(description) > 350:
+            await interaction.response.send_message(f"{NO}**Description too long.** Max 350 characters. "
+                                                    f"(Currently {len(description)})\n"
+                                                    f"> **Tip:** *You can click on the **`... used /set-description`** "
+                                                    f"on top of this message to retrieve your last command!*",
+                                                    ephemeral=True)
+            return
+        interaction.client.db.edit_guild_description(interaction.guild.id, description)
+        await interaction.response.send_message(
+            f"{YES}**The description has been set.**" if description else
+            f"{YES}**The description has been reset.**", ephemeral=True)
+        await interaction.client.refresh(interaction.guild.id)
+
+
+    @tree.command(name="set-talent", description="Sets the name of the talent the schedule is for.")
+    @app_commands.describe(name="The name of talent that the schedule is for. (Max 40 characters)")
+    @app_commands.guild_only()
+    @app_commands.default_permissions(manage_channels=True)
+    @check_guild_perms
+    @app_commands.check(manage_channels)
+    async def set_talent(interaction: discord.Interaction, name: str = ""):
+        if len(name) > 40:
+            await interaction.response.send_message(f"{NO}**Talent name too long.** Max 40 characters. "
+                                                    f"(Currently {len(name)})\n"
+                                                    f"> **Tip:** *You can click on the **`... used /set-talent`** "
+                                                    f"on top of this message to retrieve your last command!*",
+                                                    ephemeral=True)
+            return
         interaction.client.db.edit_guild_talent(interaction.guild.id, name)
         await interaction.response.send_message(
             f"{YES}The talent has been set to **{name}**." if name else

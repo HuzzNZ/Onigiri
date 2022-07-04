@@ -15,7 +15,7 @@ load_dotenv()
 def sanitize_formatting(to_sanitize: str) -> str:
     characters_to_sanitize = [
         '\\', '`', '-', '=', '[', ']', '\'', ',', '.', '~', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')',
-        '_', '+', '{', '}', '|', ':', '"', '<', '>', '?', '/'
+        '_', '+', '{', '}', '|', ':', '"', '?', '/'
     ]
     new_string = ""
     for char in to_sanitize:
@@ -63,6 +63,12 @@ class OnigiriDB:
 
     def edit_guild_talent(self, guild_id, talent_name):
         self.guilds.find_one_and_update({"guild_id": guild_id}, {"$set": {"talent": talent_name}})
+
+    def edit_guild_editor(self, guild_id, editor_role_id=None):
+        self.guilds.find_one_and_update({"guild_id": guild_id}, {"$set": {"editor_role_id": editor_role_id}})
+
+    def edit_guild_description(self, guild_id, description=""):
+        self.guilds.find_one_and_update({"guild_id": guild_id}, {"$set": {"description": description}})
 
     def disable_guild(self, guild_id):
         if self.guilds.find_one({"guild_id": guild_id}).get("enabled"):
