@@ -587,7 +587,8 @@ if __name__ == "__main__":
     @check_guild_perms
     @app_commands.check(manage_channels)
     async def set_editor(interaction: discord.Interaction, editor: discord.Role = None):
-        interaction.client.db.edit_guild_editor(interaction.guild.id, editor.id)
+        editor_id = editor.id if editor else None
+        interaction.client.db.edit_guild_editor(interaction.guild.id, editor_id)
         await interaction.response.send_message(
             f"{YES}The schedule editor role has been set to **{editor.name}**." if editor else
             f"{YES}The schedule editor role has been **reset**.", ephemeral=True)
@@ -643,8 +644,10 @@ if __name__ == "__main__":
     @app_commands.check(manage_channels)
     async def server_info(interaction: discord.Interaction):
         guild = interaction.client.db.get_guild(interaction.guild.id)
+        editor_role_mention = f"<@&{guild.get('editor_role_id')}>" if guild.get('editor_role_id') else "`None`"
         msg = f"__**{interaction.guild.name}'s {interaction.client.user.mention} Configuration**__\n\n" \
               f"> **Enabled**: {YES if guild.get('enabled') else NO}\n> \n" \
+              f"> **Editor Role**: {editor_role_mention}\n> \n" \
               f"> **Talent Name**: {guild.get('talent', '`None`')}\n> \n" \
               f"> **Description**: {guild.get('description', '`None`')}\n> \n" \
               f"> **Schedule Channel**: <#{guild.get('schedule_channel_id')}>\n" \
