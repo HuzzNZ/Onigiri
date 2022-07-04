@@ -279,7 +279,8 @@ class Onigiri(commands.Bot):
             try:
                 await self.refresh(guild.get("guild_id"))
             except discord.Forbidden:
-                print(f"{log_time()}The message in {guild.get('id')} does not belong to this instance of the bot.")
+                print(f"{log_time()}The message in {guild.get('guild_id')} "
+                      f"does not belong to this instance of the bot.")
 
     @loop_refresh.before_loop
     async def before_loop(self):
