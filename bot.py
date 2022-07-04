@@ -165,7 +165,8 @@ class Onigiri(commands.Bot):
                 return []
             total_length = len(past_list)
             past_list = past_list[:self.AMOUNT_PAST_DISPLAYED][::-1]
-            contents = [f"🗂️  __**Past {min(self.AMOUNT_PAST_DISPLAYED, len(past_list))} Events**__ "
+            contents = [f"🗂️  __**Past {min(self.AMOUNT_PAST_DISPLAYED, len(past_list))} Event"
+                        f"{'s' if len(past_list) != 1 else ''}**__ "
                         f"({total_length} total)"]
             for i in range(len(past_list)):
                 e = past_list[i]
@@ -207,10 +208,9 @@ class Onigiri(commands.Bot):
                 contents.append(f"{DD}{' ' * 6}{s}{format_event_time(e, True)}{s}")
             return contents
 
-        def render_future(future_list, unspecified_list=None):
-            if unspecified_list is None:
-                unspecified_list = []
-            future_list = future_list[::-1] + unspecified_list
+        def render_future(future_list):
+            if not future_list:
+                return []
             contents = [f"☁️  __**Upcoming**__"]
             previous_dt = None
             for e in future_list:
@@ -239,17 +239,23 @@ class Onigiri(commands.Bot):
         if events:
             past, future, unspecified = separate_events(events)
 
+            future = future[::-1] + unspecified
+
             content_list += [""] if guild.get("enabled") or not guild else ["⛔  *Currently disabled.*", ""]
-            content_list += render_past_events(past)
-            content_list += ["", ""]
+            if past:
+                content_list += render_past_events(past)
+                content_list += ["", ""]
             if future:
-                content_list += render_next_up(future[-1])
-                content_list += [f"{DD}"]
-                content_list += render_future(future[:-1], unspecified)
+                content_list += render_next_up(future[0])
+                if len(future) > 1:
+                    content_list += [f"{DD}"]
+                    content_list += render_future(future[1:])
+                else:
+                    content_list += [f"{ED}"]
             else:
-                content_list += ["Nothing planned in the future. Use **/add**, or **/add-yt** to add some events!"]
+                content_list += ["> *Nothing planned in the future. Use **/add**, or **/add-yt** to add some events!*"]
         else:
-            content_list += ["\nUse **/add**, or **/add-yt** to add some events!"]
+            content_list += ["\n> *No events. Use **/add**, or **/add-yt** to add some events!*"]
 
         content = "\n".join(content_list)
 
