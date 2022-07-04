@@ -586,7 +586,7 @@ if __name__ == "__main__":
         @check_guild_perms
         @app_commands.check(manage_channels)
         async def future(self, interaction: discord.Interaction):
-            await interaction.response.send_message("Reset future events!")
+            await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
 
         @app_commands.command(description="Resets all past events in this server.")
         @app_commands.guild_only()
@@ -594,7 +594,7 @@ if __name__ == "__main__":
         @check_guild_perms
         @app_commands.check(manage_channels)
         async def past(self, interaction: discord.Interaction):
-            await interaction.response.send_message("Reset past events!")
+            await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
 
         @app_commands.command(description="Resets all events in this server.")
         @app_commands.guild_only()
@@ -602,7 +602,7 @@ if __name__ == "__main__":
         @check_guild_perms
         @app_commands.check(manage_channels)
         async def events(self, interaction: discord.Interaction):
-            await interaction.response.send_message("Reset events!")
+            await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
 
         @app_commands.command(description="Resets all configuration in this server.")
         @app_commands.guild_only()
@@ -610,7 +610,7 @@ if __name__ == "__main__":
         @check_guild_perms
         @app_commands.check(manage_channels)
         async def config(self, interaction: discord.Interaction):
-            await interaction.response.send_message("Reset configurations!")
+            await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
 
         @app_commands.command(description="Resets all events, and all configuration in this server.")
         @app_commands.guild_only()
@@ -618,7 +618,7 @@ if __name__ == "__main__":
         @check_guild_perms
         @app_commands.check(manage_channels)
         async def all(self, interaction: discord.Interaction):
-            await interaction.response.send_message("Reset all!")
+            await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
 
 
     @tree.command(description="Manually refreshes the schedule message.")
