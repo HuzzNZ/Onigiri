@@ -178,6 +178,10 @@ class OnigiriDB:
         self.events.update_one(
             {"$and": [{"guild_id": guild_id, "event_id": event_id}]}, {"$set": {"stashed": stashed}})
 
+    def edit_event_note(self, guild_id, event_id, note: str = ""):
+        self.events.update_one(
+            {"$and": [{"guild_id": guild_id, "event_id": event_id}]}, {"$set": {"note": sanitize_formatting(note)}})
+
 
 if __name__ == "__main__":
     db = OnigiriDB()

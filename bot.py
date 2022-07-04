@@ -186,6 +186,9 @@ class Onigiri(commands.Bot):
                 # Line 4
                 if e.get("url"):
                     contents.append(f"{NONE if is_last else DD}{' ' * 13}{s}<{e.get('url')}>{s}")
+                # Line 4
+                if e.get("note"):
+                    contents.append(f"{NONE if is_last else DD}{' ' * 13}*({e.get('note')})*")
             return contents
 
         def render_next_up(e):
@@ -208,6 +211,8 @@ class Onigiri(commands.Bot):
                 contents.append(f"{DD}{' ' * 6}{s}<{url}>{s}")
             if will_use_timestamp(e):
                 contents.append(f"{DD}{' ' * 6}{s}{format_event_time(e, True)}{s}")
+            if e.get("note"):
+                contents.append(f"{DD}{' ' * 6}*({e.get('note')})*")
             return contents
 
         def render_future(future_list):
@@ -232,6 +237,8 @@ class Onigiri(commands.Bot):
                     contents.append(f"{DD}{' ' * 13}{s}{e.get('title')}{s}")
                 if url:
                     contents.append(f"{DD}{' ' * 13}{s}<{url}>{s}")
+                if e.get("note"):
+                    contents.append(f"{DD}{' ' * 13}*({e.get('note')})*")
                 previous_dt = dt
             contents.append(f"{ED}")
             return contents
@@ -730,7 +737,7 @@ if __name__ == "__main__":
                     month = int(dates[0])
                 if 0 < int(dates[0]) <= 31:
                     day = int(dates[1])
-            else:
+            elif len(dates) > 2:
                 if int(dates[0]) < 100:
                     year = 2000 + int(dates[0])
                     using_current_year = False
@@ -739,8 +746,8 @@ if __name__ == "__main__":
                     using_current_year = False
                 else:
                     raise ValueError
-                month = int(dates[0])
-                day = int(dates[1])
+                month = int(dates[1])
+                day = int(dates[2])
         else:
             dates = date_str.replace(",", " ").split(" ")
             for date in dates:
@@ -934,7 +941,8 @@ if __name__ == "__main__":
         event_type="The type of the event. Defaults to stream.",
         url="The URL/Link of an event. YouTube stream/premiere URLs can be picked up.",
         date="The date of the event in JST. (e.g. Jul 12, 22/7/12, 7/12, 12 Jul 2022, today, tomorrow, etc.)",
-        time="The time of the event in JST. (e.g. 8:00 pm, 20:00, 20, 3am, 27:00, etc.)")
+        time="The time of the event in JST. (e.g. 8:00 pm, 20:00, 20, 3am, 27:00, etc.)",
+        note="The note to the event. Max 30 characters.")
     @app_commands.rename(event_id="id")
     @app_commands.rename(event_type="type")
     @app_commands.guild_only()
@@ -945,7 +953,8 @@ if __name__ == "__main__":
     @check_url
     @app_commands.check(manage_messages)
     async def edit(interaction: discord.Interaction, event_id: str,
-                   title: str = None, url: str = "", date: str = "", time: str = "", event_type: str = 'stream'):
+                   title: str = None, url: str = "", date: str = "", time: str = "",
+                   event_type: str = 'stream', note: str = ''):
         if date:
             dt = parse_date(date)
             if time:
@@ -956,10 +965,12 @@ if __name__ == "__main__":
             if not date_dt:
                 try:
                     await interaction.response.send_message(
-                        f"{NO}**No date set on event!** Please use **/date `{event_id}`** first.", ephemeral=True)
+                        f"{NO}**No date set on event!** Please add a date, or use **/date `{event_id}`** first.",
+                        ephemeral=True)
                 except discord.InteractionResponded:
                     await interaction.edit_original_message(
-                        content=f"{NO}**No date set on event!** Please use **/date `{event_id}`** first.")
+                        content=f"{NO}**No date set on event!** Please add a date, use **/date `{event_id}`** first.")
+                return
             else:
                 dt = parse_time(time, date_dt)
                 interaction.client.db.edit_event_datetime(interaction.guild.id, event_id, dt)
@@ -969,6 +980,22 @@ if __name__ == "__main__":
             interaction.client.db.edit_event_url(interaction.guild.id, event_id, url)
         if event_type:
             interaction.client.db.edit_event_type(interaction.guild.id, event_id, parse_type(event_type))
+        if note:
+            if len(note) > 30:
+                try:
+                    await interaction.response.send_message(f"{NO}**Note too long.** Max 30 characters. "
+                                                            f"(Currently {len(note)})\n"
+                                                            f"> **Tip:** *You can click on the **`... used /edit`** "
+                                                            f"on top of this message to retrieve your last command!*",
+                                                            ephemeral=True)
+                except discord.InteractionResponded:
+                    await interaction.edit_original_message(
+                        content=f"{NO}**Note too long.** Max 30 characters. "
+                                f"(Currently {len(note)})\n"
+                                f"> **Tip:** *You can click on the **`... used /edit`** "
+                                f"on top of this message to retrieve your last command!*")
+                return
+            interaction.client.db.edit_event_note(interaction.guild.id, event_id, note)
         try:
             await interaction.response.send_message(f"{YES}**Event `{event_id}` updated.**", ephemeral=True)
         except discord.InteractionResponded:
@@ -1127,6 +1154,28 @@ if __name__ == "__main__":
             await interaction.client.refresh(interaction.guild.id)
         else:
             await interaction.response.send_message(f"{NO}**Event `{event_id}` is not stashed!**", ephemeral=True)
+
+
+    @tree.command(name="note", description="Edits the note to an event.")
+    @app_commands.describe(event_id=EVENT_ID_DESC)
+    @app_commands.describe(note="The note to the event. Max 30 characters. Enter nothing to delete the note.")
+    @app_commands.guild_only()
+    @app_commands.rename(event_id="id")
+    @check_guild_perms
+    @check_event_id
+    @app_commands.check(manage_messages)
+    async def edit_note(interaction: discord.Interaction, event_id: str, note: str = ""):
+        if len(note) > 30:
+            await interaction.response.send_message(f"{NO}**Note too long.** Max 30 characters. "
+                                                    f"(Currently {len(note)})\n"
+                                                    f"> **Tip:** *You can click on the **`... used /note`** "
+                                                    f"on top of this message to retrieve your last command!*",
+                                                    ephemeral=True)
+            return
+        interaction.client.db.edit_event_note(interaction.guild.id, event_id, note)
+        await interaction.response.send_message(f"{YES}**Note to event `{event_id}` updated.**" if note else
+                                                f"{YES}**Note to event `{event_id}` deleted.**", ephemeral=True)
+        await interaction.client.refresh(interaction.guild.id)
 
 
     tree.add_command(Reset())
