@@ -90,6 +90,9 @@ class Onigiri(commands.Bot):
     async def refresh(self, guild_id, channel_id=None, talent_name=None):
         print(f"{log_time()}Refreshing guild {guild_id}.")
         guild = self.db.get_guild(guild_id)
+        if not guild:
+            print(f"{log_time()}This instance of the bot is not in this guild.")
+            return
         events = self.db.get_guild_events(guild_id)
         channel = self.get_channel(channel_id or guild.get("schedule_channel_id"))
         if not channel:
