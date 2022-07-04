@@ -128,7 +128,7 @@ class OnigiriDB:
             edited_event = {
                 "guild_id": guild_id,
                 "event_id": event_id,
-                "title": sanitize_formatting(title),
+                "title": title,
                 "type": event_type,
                 "url": url,
                 "datetime": dt,
