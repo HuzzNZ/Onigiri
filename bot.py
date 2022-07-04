@@ -161,6 +161,8 @@ class Onigiri(commands.Bot):
             return dt1.year == dt2.year and dt1.month == dt2.month and dt1.day == dt2.day
 
         def render_past_events(past_list):
+            if not past_list:
+                return []
             total_length = len(past_list)
             past_list = past_list[:self.AMOUNT_PAST_DISPLAYED][::-1]
             contents = [f"🗂️  __**Past {min(self.AMOUNT_PAST_DISPLAYED, len(past_list))} Events**__ "
@@ -232,15 +234,22 @@ class Onigiri(commands.Bot):
             contents.append(f"{ED}")
             return contents
 
-        past, future, unspecified = separate_events(events)
-
         content_list = [get_headline(talent_name)]
-        content_list += [""] if guild.get("enabled") or not guild else ["⛔  *Currently disabled.*", ""]
-        content_list += render_past_events(past)
-        content_list += ["", ""]
-        content_list += render_next_up(future[-1])
-        content_list += [f"{DD}"]
-        content_list += render_future(future[:-1], unspecified)
+
+        if events:
+            past, future, unspecified = separate_events(events)
+
+            content_list += [""] if guild.get("enabled") or not guild else ["⛔  *Currently disabled.*", ""]
+            content_list += render_past_events(past)
+            content_list += ["", ""]
+            if future:
+                content_list += render_next_up(future[-1])
+                content_list += [f"{DD}"]
+                content_list += render_future(future[:-1], unspecified)
+            else:
+                content_list += ["Nothing planned in the future. Use **/add**, or **/add-yt** to add some events!"]
+        else:
+            content_list += ["\nUse **/add**, or **/add-yt** to add some events!"]
 
         content = "\n".join(content_list)
 
