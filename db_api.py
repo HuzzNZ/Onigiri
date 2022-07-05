@@ -127,10 +127,13 @@ class OnigiriDB:
 
     def edit_event(
             self, guild_id, event_id, title, event_type=0, url="",
-            dt: Union[None, datetime.datetime] = None, conf=False):
+            dt: Union[None, datetime.datetime] = None, conf=False, note=None):
         if not title:
             return False
         else:
+            if note is None:
+                prev_note = self.get_event(guild_id, event_id).get("note", "")
+                note = prev_note
             edited_event = {
                 "guild_id": guild_id,
                 "event_id": event_id,
@@ -139,7 +142,8 @@ class OnigiriDB:
                 "url": url,
                 "datetime": dt,
                 "confirmed": conf,
-                "stashed": False
+                "stashed": False,
+                "note": note
             }
             self.events.replace_one({"$and": [{"guild_id": guild_id, "event_id": event_id}]}, edited_event)
         return event_id
