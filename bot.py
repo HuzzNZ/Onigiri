@@ -179,7 +179,7 @@ class Onigiri(commands.Bot):
                 contents.append(f"{DD}")
                 # Line 2
                 contents.append(
-                    f"{TR if is_last else DR} {s}`{e.get('event_id')}`{s}  "
+                    f"{TR if is_last else DR} ||`{e.get('event_id')}`||  "
                     f"{EMOJIPEDIA[e.get('type')].get('past') if not s else STASHED}  "
                     f"**{s}{format_event_time(e)}{s}**")
                 # Line 3
@@ -199,7 +199,7 @@ class Onigiri(commands.Bot):
                 else STASHED
             contents = [
                 f"⏰  __**Next Up**__", f"{DD}",
-                f"{s}`{e.get('event_id')}`{s}  "
+                f"||`{e.get('event_id')}`||  "
                 f"{emoji}  "
                 f"**{s}{format_event_time(e)}{s}**"]
 
@@ -231,7 +231,7 @@ class Onigiri(commands.Bot):
                 if not is_on_same_day(previous_dt, dt):
                     contents.append(f"{DD}")
                 contents.append(
-                    f"{DR} {s}`{e.get('event_id')}`{s}  "
+                    f"{DR} ||`{e.get('event_id')}`||  "
                     f"{emoji}  "
                     f"{s}**{format_event_time(e)}**{('  ' + e.get('title')) if not uses_timestamp else ''}{s}")
                 if uses_timestamp:
