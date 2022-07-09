@@ -273,6 +273,7 @@ class Onigiri(commands.Bot):
             content_list += ["\n> *No events. Use **/add**, or **/add-yt** to add some events!*"]
 
         content = "\n".join(content_list)
+        print(f"{log_time()}    ↳ {guild_id}: Message length currently {len(content)}")
 
         if not channel_id:
             try:
