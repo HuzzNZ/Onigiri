@@ -597,14 +597,14 @@ if __name__ == "__main__":
 
     @tree.command(name="set-description", description="Sets a description that appears on top of the schedule.")
     @app_commands.describe(description="The description to set. "
-                                       "Formatting will not work, but emojis will. (Max 350 characters)")
+                                       "Formatting will not work, but emojis will. (Max 200 characters)")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
     @check_guild_perms
     @app_commands.check(manage_channels)
     async def set_description(interaction: discord.Interaction, description: str = ""):
-        if len(description) > 350:
-            await interaction.response.send_message(f"{NO}**Description too long.** Max 350 characters. "
+        if len(description) > 200:
+            await interaction.response.send_message(f"{NO}**Description too long.** Max 200 characters. "
                                                     f"(Currently {len(description)})\n"
                                                     f"> **Tip:** *You can click on the **`... used /set-description`** "
                                                     f"on top of this message to retrieve your last command!*",
