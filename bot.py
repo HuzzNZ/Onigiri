@@ -78,7 +78,7 @@ def log_time():
 class Onigiri(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
-        self.AMOUNT_PAST_DISPLAYED = 3
+        self.AMOUNT_PAST_DISPLAYED = 2
         self.db = OnigiriDB()
         super().__init__(command_prefix=commands.when_mentioned_or("$"), intents=intents)
 
