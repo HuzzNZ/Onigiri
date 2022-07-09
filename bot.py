@@ -24,7 +24,7 @@ DD = "<:dd:992623483563561030>"
 DR = "<:dr:992624464078585916>"
 TR = "<:tr:992625824140361728>"
 ED = "<:ed:992627365102485624>"
-NONE = "    "
+NONE = "      "
 YT = "▶️"
 STASHED = "❌"
 WARNING = "⚠️"
@@ -199,21 +199,21 @@ class Onigiri(commands.Bot):
                 else STASHED
             contents = [
                 f"⏰  __**Next Up**__", f"{DD}",
-                f"||`{e.get('event_id')}`||  "
+                f"||`{e.get('event_id')}`||   "
                 f"{emoji}  "
                 f"**{s}{format_event_time(e)}{s}**"]
 
             if will_use_timestamp(e):
                 contents.append(f"{DD}")
 
-            contents.append(f"{DD}{' ' * 6}**{s}{e.get('title')}{s}**")
+            contents.append(f"{DD}{' ' * 7}**{s}{e.get('title')}{s}**")
 
             if url:
-                contents.append(f"{DD}{' ' * 6}{s}<{url}>{s}")
+                contents.append(f"{DD}{' ' * 7}{s}<{url}>{s}")
             if will_use_timestamp(e):
-                contents.append(f"{DD}{' ' * 6}{s}{format_event_time(e, True)}{s}")
+                contents.append(f"{DD}{' ' * 7}{s}{format_event_time(e, True)}{s}")
             if e.get("note"):
-                contents.append(f"{DD}{' ' * 6}*({e.get('note')})*")
+                contents.append(f"{DD}{' ' * 7}*({e.get('note')})*")
             return contents
 
         def render_future(future_list):
@@ -231,15 +231,15 @@ class Onigiri(commands.Bot):
                 if not is_on_same_day(previous_dt, dt):
                     contents.append(f"{DD}")
                 contents.append(
-                    f"{DR} ||`{e.get('event_id')}`||  "
+                    f"||`{e.get('event_id')}`||   "
                     f"{emoji}  "
                     f"{s}**{format_event_time(e)}**{('  ' + e.get('title')) if not uses_timestamp else ''}{s}")
                 if uses_timestamp:
-                    contents.append(f"{DD}{' ' * 13}{s}{e.get('title')}{s}")
+                    contents.append(f"{DD}{' ' * 7}{s}{e.get('title')}{s}")
                 if url:
-                    contents.append(f"{DD}{' ' * 13}{s}<{url}>{s}")
+                    contents.append(f"{DD}{' ' * 7}{s}<{url}>{s}")
                 if e.get("note"):
-                    contents.append(f"{DD}{' ' * 13}*({e.get('note')})*")
+                    contents.append(f"{DD}{' ' * 7}*({e.get('note')})*")
                 previous_dt = dt
             contents.append(f"{ED}")
             return contents
