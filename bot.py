@@ -18,22 +18,22 @@ load_dotenv()
 
 # Toggle between global sync or dev server sync
 DEV = False
-YES = "<:yes:622272511345688596>  "
-NO = "<:no:622272511299551254>  "
+YES = "✅  "
+NO = "❌  "
 DD = "<:dd:992623483563561030>"
 DR = "<:dr:992624464078585916>"
 TR = "<:tr:992625824140361728>"
 ED = "<:ed:992627365102485624>"
-NONE = "<:none:992656221293264957>"
-YT = "<:yt:993353027073364038>"
-STASHED = "<:no:622272511299551254>"
+NONE = "    "
+YT = "▶️"
+STASHED = "❌"
 WARNING = "⚠️"
 CANCELLED = "🚫"
 YR = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=" \
      r"|embed\/|v\/)?)([\w\-]+)(\S+)?$"
 EMOJIPEDIA = [
     {
-        "past": "<:yes:622272511345688596>",
+        "past": "✅",
         "confirmed": "▶️",
         "unconfirmed": "💭"
     },
@@ -106,9 +106,9 @@ class Onigiri(commands.Bot):
         def get_headline(talent_name1):
             if talent_name1:
                 talent_name_with_possessive = talent_name1 + ("'" if talent_name1.endswith("s") else "'s")
-                headline = f'__**{talent_name_with_possessive} unofficial schedule, maintained by this server**__:'
+                headline = f'__**{talent_name_with_possessive} unofficial schedule**__'
             else:
-                headline = "__**A schedule, maintained by this server**__:"
+                headline = "__**A schedule**__:"
             return headline + "\n(Events with Discord Timestamps are in your **local timezone**," \
                               f" all other times are in **JST**.)\n"
 
@@ -188,7 +188,7 @@ class Onigiri(commands.Bot):
                 if e.get("url"):
                     contents.append(f"{NONE if is_last else DD}{' ' * 13}{s}<{e.get('url')}>{s}")
                 # Line 4
-                if e.get("note"):
+                if e.get("note") and e.get('stashed'):
                     contents.append(f"{NONE if is_last else DD}{' ' * 13}*({e.get('note')})*")
             return contents
 
