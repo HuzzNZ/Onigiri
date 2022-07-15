@@ -256,6 +256,8 @@ class Onigiri(commands.Bot):
 
             future = future[::-1] + unspecified
 
+            print(past, future)
+
             content_list += [""] if guild.get("enabled") or not guild else ["⛔  *Currently disabled.*", ""]
             if past:
                 content_list += render_past_events(past)
