@@ -1,4 +1,5 @@
 import asyncio
+from pprint import pprint
 from typing import List, Union, Optional, Literal
 from discord.ext import commands, tasks
 from discord import app_commands
@@ -113,6 +114,7 @@ class Onigiri(commands.Bot):
                               f" all other times are in **JST**.)\n"
 
         def separate_events(event_list):
+            pprint(event_list)
             future_list = []
             past_list = []
             unspecified_list = []
@@ -275,7 +277,7 @@ class Onigiri(commands.Bot):
             content_list += ["\n> *No events. Use **/add**, or **/add-yt** to add some events!*"]
 
         content = "\n".join(content_list)
-        print(f"{log_time()}    ↳ {guild_id}: Message length currently {len(content)}")
+        pprint(f"{log_time()}    ↳ {guild_id}: Message length currently {len(content)}")
 
         if not channel_id:
             try:
