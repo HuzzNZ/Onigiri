@@ -76,10 +76,71 @@ def log_time():
     return datetime.now().strftime('[%b %d %H:%M:%S]  ')
 
 
+def is_generic_date(dt: datetime):
+    if dt:
+        return dt.hour == 23 and dt.minute == 59 and dt.second == 59
+
+
+def will_use_timestamp(e):
+    dt: datetime = e.get("datetime")
+    return e.get("confirmed") or (e.get('type') == 2 and not is_generic_date(dt))
+
+
+def format_event_time(e, r=False):
+    dt: datetime = e.get("datetime")
+    if dt:
+        if will_use_timestamp(e):
+            return f"<t:{int(dt.timestamp())}:{'R' if r else 'f'}>"
+        else:
+            now = datetime.now(JST)
+            if dt.year == now.year and dt.month == now.month and dt.day == now.day:
+                base_str = "Today"
+                time_format = ""
+            else:
+                base_str = ""
+                time_format = "%b %-d"
+            if dt.year != now.year and not (now.month == 12 and dt.year - 1 == now.year):
+                time_format += ", %Y"
+            if not is_generic_date(dt):
+                time_format += f"{',' if base_str else ' '} %H:%M"
+            return base_str + dt.strftime(time_format)
+    else:
+        return "Unknown"
+
+
+def render_past_events(past_list, amount):
+    if not past_list:
+        return []
+    total_length = len(past_list)
+    past_list = past_list[:amount][::-1]
+    contents = [f"🗂️  __**Past {min(amount, len(past_list))} Event"
+                f"{'s' if len(past_list) != 1 else ''}**__ "
+                f"({total_length} total)"]
+    for i in range(len(past_list)):
+        e = past_list[i]
+        s = "~~" if e.get("stashed") else ""
+        is_last = i == len(past_list) - 1
+        # Line 1
+        contents.append(f"{DD}")
+        # Line 2
+        contents.append(
+            f"{TR if is_last else DR} ||`{e.get('event_id')}`||  "
+            f"{EMOJIPEDIA[e.get('type')].get('past') if not s else STASHED}  "
+            f"**{s}{format_event_time(e)}{s}**")
+        # Line 3
+        contents.append(f"{NONE if is_last else DD}{' ' * 13}{s}{e.get('title')}{s}")
+        # Line 4
+        if e.get("url"):
+            contents.append(f"{NONE if is_last else DD}{' ' * 13}{s}<{e.get('url')}>{s}")
+        # Line 4
+        if e.get("note") and e.get('stashed'):
+            contents.append(f"{NONE if is_last else DD}{' ' * 13}*({e.get('note')})*")
+    return contents
+
+
 class Onigiri(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
-        self.AMOUNT_PAST_DISPLAYED = 2
         self.db = OnigiriDB()
         super().__init__(command_prefix=commands.when_mentioned_or("$"), intents=intents)
 
@@ -114,7 +175,6 @@ class Onigiri(commands.Bot):
                               f" all other times are in **JST**.)\n"
 
         def separate_events(event_list):
-            pprint(event_list)
             future_list = []
             past_list = []
             unspecified_list = []
@@ -129,70 +189,12 @@ class Onigiri(commands.Bot):
                     unspecified_list.append(e)
             return past_list, future_list, unspecified_list
 
-        def is_generic_date(dt: datetime):
-            if dt:
-                return dt.hour == 23 and dt.minute == 59 and dt.second == 59
-
-        def will_use_timestamp(e):
-            dt: datetime = e.get("datetime")
-            return e.get("confirmed") or (e.get('type') == 2 and not is_generic_date(dt))
-
-        def format_event_time(e, r=False):
-            dt: datetime = e.get("datetime")
-            if dt:
-                if will_use_timestamp(e):
-                    return f"<t:{int(dt.timestamp())}:{'R' if r else 'f'}>"
-                else:
-                    now = datetime.now(JST)
-                    if dt.year == now.year and dt.month == now.month and dt.day == now.day:
-                        base_str = "Today"
-                        time_format = ""
-                    else:
-                        base_str = ""
-                        time_format = "%b %-d"
-                    if dt.year != now.year and not (now.month == 12 and dt.year - 1 == now.year):
-                        time_format += ", %Y"
-                    if not is_generic_date(dt):
-                        time_format += f"{',' if base_str else ' '} %H:%M"
-                    return base_str + dt.strftime(time_format)
-            else:
-                return "Unknown"
-
         def is_on_same_day(dt1: datetime, dt2: datetime):
             if not dt1 and not dt2:
                 return True
             if not dt1 or not dt2:
                 return False
             return dt1.year == dt2.year and dt1.month == dt2.month and dt1.day == dt2.day
-
-        def render_past_events(past_list):
-            if not past_list:
-                return []
-            total_length = len(past_list)
-            past_list = past_list[:self.AMOUNT_PAST_DISPLAYED][::-1]
-            contents = [f"🗂️  __**Past {min(self.AMOUNT_PAST_DISPLAYED, len(past_list))} Event"
-                        f"{'s' if len(past_list) != 1 else ''}**__ "
-                        f"({total_length} total)"]
-            for i in range(len(past_list)):
-                e = past_list[i]
-                s = "~~" if e.get("stashed") else ""
-                is_last = i == len(past_list) - 1
-                # Line 1
-                contents.append(f"{DD}")
-                # Line 2
-                contents.append(
-                    f"{TR if is_last else DR} ||`{e.get('event_id')}`||  "
-                    f"{EMOJIPEDIA[e.get('type')].get('past') if not s else STASHED}  "
-                    f"**{s}{format_event_time(e)}{s}**")
-                # Line 3
-                contents.append(f"{NONE if is_last else DD}{' ' * 13}{s}{e.get('title')}{s}")
-                # Line 4
-                if e.get("url"):
-                    contents.append(f"{NONE if is_last else DD}{' ' * 13}{s}<{e.get('url')}>{s}")
-                # Line 4
-                if e.get("note") and e.get('stashed'):
-                    contents.append(f"{NONE if is_last else DD}{' ' * 13}*({e.get('note')})*")
-            return contents
 
         def render_next_up(e):
             url = e.get('url')
@@ -251,19 +253,17 @@ class Onigiri(commands.Bot):
         if guild.get("description"):
             content_list.append(f"> {guild.get('description')}\n")
 
-        content_list += [f"> *Last refreshed <t:{int(datetime.now().timestamp())}:f>*\n"]
+        content_list += [f"> *Last refreshed <t:{int(datetime.now().timestamp())}:R>.*"]
 
         if events:
             past, future, unspecified = separate_events(events)
+            if past:
+                content_list += [f'> ***{len(past)}** events in history.*']
+                content_list += [""]
 
             future = future[::-1] + unspecified
 
-            print(past, future)
-
             content_list += [""] if guild.get("enabled") or not guild else ["⛔  *Currently disabled.*", ""]
-            if past:
-                content_list += render_past_events(past)
-                content_list += ["", ""]
             if future:
                 content_list += render_next_up(future[0])
                 if len(future) > 1:
@@ -277,7 +277,7 @@ class Onigiri(commands.Bot):
             content_list += ["\n> *No events. Use **/add**, or **/add-yt** to add some events!*"]
 
         content = "\n".join(content_list)
-        pprint(f"{log_time()}    ↳ {guild_id}: Message length currently {len(content)}")
+        print(f"{log_time()}    ↳ {guild_id}: Message length currently {len(content)}")
 
         if not channel_id:
             try:
