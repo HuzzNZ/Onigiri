@@ -40,14 +40,17 @@ class Onigiri(commands.Bot):
         return message
 
     async def update_schedule(self, guild_id: int) -> Optional[discord.Message]:
-        guild = self.db.get_guild(guild_id)
-        print(f"{log_time()}Updating schedule for guild {guild.name} ({guild.id}).")
+        print(f"{log_time()}Updating schedule for guild {guild_id}.")
 
-        if not guild:
+        guild = self.get_guild(guild_id)
+        if guild:
+            print(f"{log_time()}    ↳ {guild_id}: {guild.name}")
+        else:
             print(f"{log_time()}    ↳ {guild_id}: This instance is not in the guild.")
             print(f"{log_time()}")
             return
 
+        guild = self.db.get_guild(guild_id)
         events = self.db.get_guild_events(guild_id)
         channel = self.get_channel(guild.get("schedule_channel_id"))
         if not channel:
@@ -56,7 +59,7 @@ class Onigiri(commands.Bot):
         message = await channel.fetch_message(guild.get("schedule_message_id"))
         content = render_schedule(guild, events)
         print(f"{log_time()}    ↳ {guild_id}: Message length currently {len(content)}")
-
+        print(f"{log_time()}")
         return await message.edit(content=content)
 
     @tasks.loop(minutes=5)
@@ -68,7 +71,7 @@ class Onigiri(commands.Bot):
                 print(f"{log_time()}    "
                       f"↳ {guild.get('guild_id')}: Missing permissions to update message.")
                 print(f"{log_time()}")
-            except ValueError:
+            except discord.NotFound:
                 print(f"{log_time()}    "
                       f"↳ {guild.get('guild_id')}: Schedule message or channel not found.")
                 print(f"{log_time()}")
@@ -90,28 +93,33 @@ if __name__ == "__main__":
     # Decorators
 
 
-    def check_guild_perms(func):
+    def check_perms(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             try:
                 interaction: discord.Interaction = args[0]
-                guild = interaction.client.db.check_guild_exists(interaction.guild.id)
             except AttributeError:
                 interaction: discord.Interaction = args[1]
-                guild = interaction.client.db.check_guild_exists(interaction.guild.id)
+
+            guild = interaction.client.db.check_guild_exists(interaction.guild.id)
+
             if guild:
-                if guild.get('enabled'):
-                    try:
+                current_channel = guild.get("schedule_channel_id")
+                current_message = guild.get("schedule_message_id")
+                bad_message = False
+                try:
+                    await interaction.client.get_channel(current_channel).fetch_message(current_message)
+                except (discord.NotFound, discord.Forbidden, AttributeError):
+                    error = "**Command failed.** The schedule channel/message cannot be found! Please run **/setup**."
+                    bad_message = True
+                if not bad_message:
+                    if guild.get('enabled'):
                         return await func(*args, **kwargs)
-                    except discord.Forbidden:
-                        error = "**Command failed.** Check that the bot has the permissions to **view**, " \
-                                "and **send messages** in the schedule channel."
-                    except discord.NotFound:
-                        error = "**Command failed.** The schedule channel / message no longer exists! Please run **/setup**."
-                else:
-                    error = "I'm currently **disabled** on the server! Please run **/enable** to enable me again."
+                    else:
+                        error = "I'm currently **disabled** on the server! Please run **/enable** to enable me again."
             else:
                 raise NoGuildFound
+
             try:
                 await interaction.response.send_message(NO + error, ephemeral=True)
             except discord.InteractionResponded:
@@ -304,8 +312,15 @@ if __name__ == "__main__":
         guild_id = interaction.guild.id
         schedule_channel_id = channel.id
 
-        current_channel = interaction.client.db.get_guild(guild_id).get("schedule_channel_id")
-        if not current_channel or current_channel != schedule_channel_id:
+        current_guild = interaction.client.db.get_guild(guild_id)
+        current_channel = current_guild.get("schedule_channel_id")
+        current_message = current_guild.get("schedule_message_id")
+        reset = False
+        try:
+            await interaction.client.get_channel(current_channel).fetch_message(current_message)
+        except (discord.NotFound, discord.Forbidden, AttributeError):
+            reset = True
+        if not current_channel or current_channel != schedule_channel_id or reset:
             try:
                 message = await interaction.client.new_schedule(guild_id, schedule_channel_id)
             except discord.Forbidden:
@@ -365,7 +380,7 @@ if __name__ == "__main__":
     @app_commands.rename(editor="role")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
-    @check_guild_perms
+    @check_perms
     @app_commands.check(manage_channels)
     async def set_editor(interaction: discord.Interaction, editor: discord.Role = None):
         editor_id = editor.id if editor else None
@@ -380,7 +395,7 @@ if __name__ == "__main__":
                                        "Formatting will not work, but emojis will. (Max 200 characters)")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
-    @check_guild_perms
+    @check_perms
     @app_commands.check(manage_channels)
     async def set_description(interaction: discord.Interaction, description: str = ""):
         if len(description) > 200:
@@ -401,7 +416,7 @@ if __name__ == "__main__":
     @app_commands.describe(name="The name of talent that the schedule is for. (Max 40 characters)")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
-    @check_guild_perms
+    @check_perms
     @app_commands.check(manage_channels)
     async def set_talent(interaction: discord.Interaction, name: str = ""):
         if len(name) > 40:
@@ -421,7 +436,7 @@ if __name__ == "__main__":
     @tree.command(name="server-info", description="This server's configuration at a glance.")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
-    @check_guild_perms
+    @check_perms
     @app_commands.check(manage_channels)
     async def server_info(interaction: discord.Interaction):
         guild = interaction.client.db.get_guild(interaction.guild.id)
@@ -444,7 +459,7 @@ if __name__ == "__main__":
         @app_commands.command(description="Resets all future events in this server.")
         @app_commands.guild_only()
         @app_commands.default_permissions(manage_channels=True)
-        @check_guild_perms
+        @check_perms
         @app_commands.check(manage_channels)
         async def future(self, interaction: discord.Interaction):
             await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
@@ -452,7 +467,7 @@ if __name__ == "__main__":
         @app_commands.command(description="Resets all past events in this server.")
         @app_commands.guild_only()
         @app_commands.default_permissions(manage_channels=True)
-        @check_guild_perms
+        @check_perms
         @app_commands.check(manage_channels)
         async def past(self, interaction: discord.Interaction):
             await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
@@ -460,7 +475,7 @@ if __name__ == "__main__":
         @app_commands.command(description="Resets all events in this server.")
         @app_commands.guild_only()
         @app_commands.default_permissions(manage_channels=True)
-        @check_guild_perms
+        @check_perms
         @app_commands.check(manage_channels)
         async def events(self, interaction: discord.Interaction):
             await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
@@ -468,7 +483,7 @@ if __name__ == "__main__":
         @app_commands.command(description="Resets all configuration in this server.")
         @app_commands.guild_only()
         @app_commands.default_permissions(manage_channels=True)
-        @check_guild_perms
+        @check_perms
         @app_commands.check(manage_channels)
         async def config(self, interaction: discord.Interaction):
             await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
@@ -476,7 +491,7 @@ if __name__ == "__main__":
         @app_commands.command(description="Resets all events, and all configuration in this server.")
         @app_commands.guild_only()
         @app_commands.default_permissions(manage_channels=True)
-        @check_guild_perms
+        @check_perms
         @app_commands.check(manage_channels)
         async def all(self, interaction: discord.Interaction):
             await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
@@ -484,7 +499,7 @@ if __name__ == "__main__":
 
     @tree.command(description="Manually refreshes the schedule message.")
     @app_commands.guild_only()
-    @check_guild_perms
+    @check_perms
     @app_commands.check(manage_messages)
     async def refresh(interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -673,7 +688,7 @@ if __name__ == "__main__":
     @app_commands.guild_only()
     @app_commands.autocomplete(event_type=type_ac)
     @app_commands.rename(event_type="type")
-    @check_guild_perms
+    @check_perms
     @check_date_time
     @check_title
     @check_url
@@ -699,7 +714,7 @@ if __name__ == "__main__":
         url="The YouTube URL linking to a video, premiere, or stream.",
         title="The title of the event. Max 30 characters. Defaults to the title of the YouTube video/stream.")
     @app_commands.guild_only()
-    @check_guild_perms
+    @check_perms
     @check_title
     @check_url
     @app_commands.check(manage_messages)
@@ -715,7 +730,7 @@ if __name__ == "__main__":
     @app_commands.describe(event_id=EVENT_ID_DESC)
     @app_commands.rename(event_id="id")
     @app_commands.guild_only()
-    @check_guild_perms
+    @check_perms
     @check_event_id
     @app_commands.check(manage_messages)
     async def delete(interaction: discord.Interaction, event_id: str):
@@ -748,7 +763,7 @@ if __name__ == "__main__":
     @app_commands.rename(event_type="type")
     @app_commands.guild_only()
     @app_commands.autocomplete(event_type=type_ac)
-    @check_guild_perms
+    @check_perms
     @check_event_id
     @check_title
     @check_url
@@ -809,7 +824,7 @@ if __name__ == "__main__":
     @app_commands.describe(title="The title of the event. Max 30 characters.")
     @app_commands.guild_only()
     @app_commands.rename(event_id="id")
-    @check_guild_perms
+    @check_perms
     @check_event_id
     @check_title
     @app_commands.check(manage_messages)
@@ -826,7 +841,7 @@ if __name__ == "__main__":
                                "Enter nothing to clear the URL.")
     @app_commands.guild_only()
     @app_commands.rename(event_id="id")
-    @check_guild_perms
+    @check_perms
     @check_event_id
     @check_url
     @app_commands.check(manage_messages)
@@ -853,7 +868,7 @@ if __name__ == "__main__":
                                 "Enter nothing clear the date.")
     @app_commands.rename(event_id="id")
     @app_commands.guild_only()
-    @check_guild_perms
+    @check_perms
     @check_event_id
     @check_date_time
     @app_commands.check(manage_messages)
@@ -877,7 +892,7 @@ if __name__ == "__main__":
                                 "Enter nothing to clear the time.")
     @app_commands.rename(event_id="id")
     @app_commands.guild_only()
-    @check_guild_perms
+    @check_perms
     @check_event_id
     @check_date_time
     @app_commands.check(manage_messages)
@@ -906,7 +921,7 @@ if __name__ == "__main__":
     @app_commands.guild_only()
     @app_commands.autocomplete(event_type=type_ac)
     @app_commands.rename(event_type="type")
-    @check_guild_perms
+    @check_perms
     @check_event_id
     @app_commands.check(manage_messages)
     async def edit_type(interaction: discord.Interaction, event_id: str, event_type: str = ""):
@@ -926,7 +941,7 @@ if __name__ == "__main__":
     @app_commands.describe(event_id=EVENT_ID_DESC)
     @app_commands.rename(event_id="id")
     @app_commands.guild_only()
-    @check_guild_perms
+    @check_perms
     @check_event_id
     @app_commands.check(manage_messages)
     async def stash(interaction: discord.Interaction, event_id: str):
@@ -943,7 +958,7 @@ if __name__ == "__main__":
     @tree.command(description="Unstashes an event.")
     @app_commands.describe(event_id=EVENT_ID_DESC)
     @app_commands.guild_only()
-    @check_guild_perms
+    @check_perms
     @check_event_id
     @app_commands.check(manage_messages)
     async def unstash(interaction: discord.Interaction, event_id: str):
@@ -962,7 +977,7 @@ if __name__ == "__main__":
     @app_commands.describe(note="The note to the event. Max 30 characters. Enter nothing to delete the note.")
     @app_commands.guild_only()
     @app_commands.rename(event_id="id")
-    @check_guild_perms
+    @check_perms
     @check_event_id
     @app_commands.check(manage_messages)
     async def edit_note(interaction: discord.Interaction, event_id: str, note: str = ""):
