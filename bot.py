@@ -65,32 +65,62 @@ EVENT_ID_DESC = "The 4-digit numeric ID associated with each event. (e.g. 1902, 
 EVENT_TYPES = ['stream', 'video', 'event', 'release', 'other']
 
 
-def validate_yt(link):
-    yt_id = ""
+def validate_yt(link: str) -> Optional[str]:
+    """
+    Validates a YouTube link against a regex string, and returns the YouTube ID if there is a match.
+
+    :param link: The link to be verified
+    :return: The YouTube ID from the link, if it exists
+    """
+    yt_id = None
     if match := re.search(YR, link, re.IGNORECASE):
         yt_id = match.group(6)
     return yt_id
 
 
-def log_time():
+def log_time() -> str:
+    """
+    Returns a string representing the current time.
+
+    :return: String representing the current time
+    """
     return datetime.now().strftime('[%b %d %H:%M:%S]  ')
 
 
-def is_generic_date(dt: datetime):
+def is_generic_date(dt: datetime) -> bool:
+    """
+    Checks if a given datetime is a generic date based on whether the time is 23:59:59.
+
+    :param dt: The datetime to check
+    :return: True if the time is 23:59:59, False if not
+    """
     if dt:
         return dt.hour == 23 and dt.minute == 59 and dt.second == 59
 
 
-def will_use_timestamp(e):
-    dt: datetime = e.get("datetime")
-    return e.get("confirmed") or (e.get('type') == 2 and not is_generic_date(dt))
+def will_use_timestamp(event) -> bool:
+    """
+    Checks if a given event should be displayed with a Discord timestamp.
+
+    :param event: The event to check
+    :return: True if the event should be displayed with a Discord timestamp, False if not
+    """
+    dt: datetime = event.get("datetime")
+    return event.get("confirmed") or (event.get('type') == 2 and not is_generic_date(dt))
 
 
-def format_event_time(e, r=False):
-    dt: datetime = e.get("datetime")
+def format_event_time(event, relative: bool = False) -> str:
+    """
+    Formats the time displayed next to an event.
+
+    :param event: The event to format
+    :param relative: If the Discord timestamp should be relative
+    :return: A string representing the datetime of an event
+    """
+    dt: datetime = event.get("datetime")
     if dt:
-        if will_use_timestamp(e):
-            return f"<t:{int(dt.timestamp())}:{'R' if r else 'f'}>"
+        if will_use_timestamp(event):
+            return f"<t:{int(dt.timestamp())}:{'R' if relative else 'f'}>"
         else:
             now = datetime.now(JST)
             if dt.year == now.year and dt.month == now.month and dt.day == now.day:
@@ -106,6 +136,58 @@ def format_event_time(e, r=False):
             return base_str + dt.strftime(time_format)
     else:
         return "Unknown"
+
+
+def get_headline(talent: str = ""):
+    """
+    Gets the headline of a schedule.
+    :param talent: The name of the talent the schedule is for
+    :return: A string of a formatted headline
+    """
+    if talent:
+        talent_name_with_possessive = talent + ("'" if talent.endswith("s") else "'s")
+        headline = f'__**{talent_name_with_possessive} unofficial schedule**__'
+    else:
+        headline = "__**A schedule**__:"
+    return headline + "\n(Events with Discord Timestamps are in your **local timezone**," \
+                      f" all other times are in **JST**.)\n"
+
+
+def separate_events(event_list: list) -> (list, list, list):
+    """
+    Separates a list of events into the past, future and unspecified.
+
+    :param event_list: The list of events to separate
+    :return: Three lists of events, past_list, future_list and unspecified_list
+    """
+    future_list = []
+    past_list = []
+    unspecified_list = []
+
+    time_now = datetime.now(JST)
+
+    for e in event_list:
+        e_datetime = e.get("datetime")
+        if e_datetime:
+            if e_datetime > time_now:
+                future_list.append(e)
+            else:
+                past_list.append(e)
+        else:
+            unspecified_list.append(e)
+    return past_list, future_list, unspecified_list
+
+
+def is_on_same_day(dt1: datetime, dt2: datetime) -> bool:
+    """
+    Checks if two events occur on the same day.
+    """
+    # TODO: Add support for more granular events to be compared
+    if not dt1 and not dt2:
+        return True
+    if not dt1 or not dt2:
+        return False
+    return dt1.year == dt2.year and dt1.month == dt2.month and dt1.day == dt2.day
 
 
 def render_past_events(past_list, amount):
@@ -162,39 +244,6 @@ class Onigiri(commands.Bot):
             raise ValueError
 
         talent_name: str = talent_name or guild.get("talent")
-
-        time_now = datetime.now(JST)
-
-        def get_headline(talent_name1):
-            if talent_name1:
-                talent_name_with_possessive = talent_name1 + ("'" if talent_name1.endswith("s") else "'s")
-                headline = f'__**{talent_name_with_possessive} unofficial schedule**__'
-            else:
-                headline = "__**A schedule**__:"
-            return headline + "\n(Events with Discord Timestamps are in your **local timezone**," \
-                              f" all other times are in **JST**.)\n"
-
-        def separate_events(event_list):
-            future_list = []
-            past_list = []
-            unspecified_list = []
-            for e in event_list:
-                e_datetime = e.get("datetime")
-                if e_datetime:
-                    if e_datetime > time_now:
-                        future_list.append(e)
-                    else:
-                        past_list.append(e)
-                else:
-                    unspecified_list.append(e)
-            return past_list, future_list, unspecified_list
-
-        def is_on_same_day(dt1: datetime, dt2: datetime):
-            if not dt1 and not dt2:
-                return True
-            if not dt1 or not dt2:
-                return False
-            return dt1.year == dt2.year and dt1.month == dt2.month and dt1.day == dt2.day
 
         def render_next_up(e):
             url = e.get('url')
