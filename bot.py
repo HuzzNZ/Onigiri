@@ -98,7 +98,7 @@ def is_generic_date(dt: datetime) -> bool:
         return dt.hour == 23 and dt.minute == 59 and dt.second == 59
 
 
-def will_use_timestamp(event) -> bool:
+def will_use_timestamp(event: dict) -> bool:
     """
     Checks if a given event should be displayed with a Discord timestamp.
 
@@ -109,7 +109,7 @@ def will_use_timestamp(event) -> bool:
     return event.get("confirmed") or (event.get('type') == 2 and not is_generic_date(dt))
 
 
-def format_event_time(event, relative: bool = False) -> str:
+def format_event_time(event: dict, relative: bool = False) -> str:
     """
     Formats the time displayed next to an event.
 
@@ -190,33 +190,118 @@ def is_on_same_day(dt1: datetime, dt2: datetime) -> bool:
     return dt1.year == dt2.year and dt1.month == dt2.month and dt1.day == dt2.day
 
 
-def render_past_events(past_list, amount):
+def render_past_events(past_list: [dict], amount: int = 0) -> [str]:
+    """
+    Renders the "Past Events" section of the schedule.
+
+    :param past_list: A list of events representing past events in descending order.
+    :param amount: The amount of events to display. Defaults to 0 (unlimited).
+    :return: A formatted list of strings representing past events.
+    """
     if not past_list:
         return []
+
     total_length = len(past_list)
     past_list = past_list[:amount][::-1]
-    contents = [f"🗂️  __**Past {min(amount, len(past_list))} Event"
-                f"{'s' if len(past_list) != 1 else ''}**__ "
-                f"({total_length} total)"]
+    contents = [
+        f"🗂️  __**Past {min(amount, len(past_list))} Event{'s' if len(past_list) != 1 else ''}**__ "
+        f"({total_length} total)"]
+
     for i in range(len(past_list)):
-        e = past_list[i]
-        s = "~~" if e.get("stashed") else ""
+        event = past_list[i]
         is_last = i == len(past_list) - 1
-        # Line 1
+        nl_prefix = f"{NONE if is_last else DD}{' ' * 13}"
+        s = "~~" if event.get("stashed") else ""
+
         contents.append(f"{DD}")
-        # Line 2
         contents.append(
-            f"{TR if is_last else DR} ||`{e.get('event_id')}`||  "
-            f"{EMOJIPEDIA[e.get('type')].get('past') if not s else STASHED}  "
-            f"**{s}{format_event_time(e)}{s}**")
-        # Line 3
-        contents.append(f"{NONE if is_last else DD}{' ' * 13}{s}{e.get('title')}{s}")
-        # Line 4
-        if e.get("url"):
-            contents.append(f"{NONE if is_last else DD}{' ' * 13}{s}<{e.get('url')}>{s}")
-        # Line 4
-        if e.get("note") and e.get('stashed'):
-            contents.append(f"{NONE if is_last else DD}{' ' * 13}*({e.get('note')})*")
+            f"{TR if is_last else DR}  ||`{event.get('event_id')}`||  "
+            f"{EMOJIPEDIA[event.get('type')].get('past') if not s else STASHED}  "
+            f"**{s}{format_event_time(event)}{s}**")
+
+        contents.append(f"{nl_prefix}{s}{event.get('title')}{s}")
+        if event.get("url"):
+            contents.append(f"{nl_prefix}{s}<{event.get('url')}>{s}")
+        if event.get("note"):
+            contents.append(f"{nl_prefix}*({event.get('note')})*")
+    return contents
+
+
+def render_next_up(event: dict) -> [str]:
+    """
+    Renders the "Next Up" section of the schedule.
+
+    :param event: The event that is next up.
+    :return: A formatted list of strings representing the next up event.
+    """
+    if not event:
+        return []
+
+    nl_prefix = f"{DD}{' ' * 7}"
+    s = "~~" if event.get("stashed") else ""
+
+    emoji = EMOJIPEDIA[event.get('type')].get(
+        'confirmed' if event.get('confirmed') else 'unconfirmed') if not s else STASHED
+
+    contents = [
+        f"⏰  __**Next Up**__",
+        f"{DD}",
+        f"||`{event.get('event_id')}`||   {emoji}  **{s}{format_event_time(event)}{s}**"
+    ]
+
+    if will_use_timestamp(event):
+        contents.append(f"{DD}")
+    contents.append(f"{nl_prefix}**{s}{event.get('title')}{s}**")
+
+    if event.get('url'):
+        contents.append(f"{nl_prefix}{s}<{event.get('url')}>{s}")
+    if will_use_timestamp(event):
+        contents.append(f"{nl_prefix}{s}{format_event_time(event, True)}{s}")
+    if event.get("note"):
+        contents.append(f"{nl_prefix}*({event.get('note')})*")
+
+    return contents
+
+
+def render_future(future_list: [dict]) -> [str]:
+    """
+    Renders the "Upcoming" section of the schedule.
+
+    :param future_list: A list of events representing upcoming events.
+    :return: A formatted list of strings representing the upcoming events.
+    """
+    # TODO: Add back stubby!!!
+    if not future_list:
+        return []
+
+    contents = [f"☁️  __**Upcoming**__"]
+    previous_event = {}
+    for event in future_list:
+        dt = event.get('datetime')
+        uses_timestamp = will_use_timestamp(event)
+        nl_prefix = f"{DD}{' ' * 7}"
+        s = "~~" if event.get("stashed") else ""
+
+        emoji = (EMOJIPEDIA[event.get('type')].get(
+            'confirmed' if event.get('confirmed') else 'unconfirmed')) if not s else STASHED
+
+        if not is_on_same_day(previous_event.get('datetime'), dt) or previous_event.get("note"):
+            contents.append(f"{DD}")
+
+        contents.append(
+            f"||`{event.get('event_id')}`||   {emoji}  "
+            f"{s}**{format_event_time(event)}**"
+            f"{('  ' + event.get('title')) if not uses_timestamp else ''}{s}")
+
+        if uses_timestamp:
+            contents.append(f"{nl_prefix}{s}{event.get('title')}{s}")
+        if event.get("url"):
+            contents.append(f"{nl_prefix}{s}<{event.get('url')}>{s}")
+        if event.get("note"):
+            contents.append(f"{nl_prefix}*({event.get('note')})*")
+        previous_event = event
+
+    contents.append(f"{ED}")
     return contents
 
 
@@ -244,59 +329,6 @@ class Onigiri(commands.Bot):
             raise ValueError
 
         talent_name: str = talent_name or guild.get("talent")
-
-        def render_next_up(e):
-            url = e.get('url')
-            s = "~~" if e.get("stashed") else ""
-            emoji = EMOJIPEDIA[e.get('type')].get('confirmed' if e.get('confirmed') else 'unconfirmed') if not s \
-                else STASHED
-            contents = [
-                f"⏰  __**Next Up**__", f"{DD}",
-                f"||`{e.get('event_id')}`||   "
-                f"{emoji}  "
-                f"**{s}{format_event_time(e)}{s}**"]
-
-            if will_use_timestamp(e):
-                contents.append(f"{DD}")
-
-            contents.append(f"{DD}{' ' * 7}**{s}{e.get('title')}{s}**")
-
-            if url:
-                contents.append(f"{DD}{' ' * 7}{s}<{url}>{s}")
-            if will_use_timestamp(e):
-                contents.append(f"{DD}{' ' * 7}{s}{format_event_time(e, True)}{s}")
-            if e.get("note"):
-                contents.append(f"{DD}{' ' * 7}*({e.get('note')})*")
-            return contents
-
-        def render_future(future_list):
-            if not future_list:
-                return []
-            contents = [f"☁️  __**Upcoming**__"]
-            previous_dt = None
-            for e in future_list:
-                url = e.get('url')
-                dt = e.get('datetime')
-                s = "~~" if e.get("stashed") else ""
-                emoji = (EMOJIPEDIA[e.get('type')].get('confirmed' if e.get('confirmed') else 'unconfirmed')) if not s \
-                    else STASHED
-                uses_timestamp = will_use_timestamp(e)
-                if not is_on_same_day(previous_dt, dt):
-                    contents.append(f"{DD}")
-                contents.append(
-                    f"||`{e.get('event_id')}`||   "
-                    f"{emoji}  "
-                    f"{s}**{format_event_time(e)}**{('  ' + e.get('title')) if not uses_timestamp else ''}{s}")
-                if uses_timestamp:
-                    contents.append(f"{DD}{' ' * 7}{s}{e.get('title')}{s}")
-                if url:
-                    contents.append(f"{DD}{' ' * 7}{s}<{url}>{s}")
-                if e.get("note"):
-                    contents.append(f"{DD}{' ' * 7}*({e.get('note')})*")
-                previous_dt = dt
-            contents.append(f"{ED}")
-            return contents
-
         content_list = [get_headline(talent_name)]
 
         if guild.get("description"):
