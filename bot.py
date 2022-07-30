@@ -1,308 +1,24 @@
-import asyncio
-from pprint import pprint
-from typing import List, Union, Optional, Literal
-from discord.ext import commands, tasks
-from discord import app_commands
-import discord
-from discord.ext.commands import Context, Greedy
-from dotenv import load_dotenv
 import os
-from db_api import OnigiriDB
-from datetime import datetime, timedelta
-import pytz
-import re
 from functools import wraps
+from datetime import datetime, timedelta
+from typing import List, Union, Optional, Literal
+
+import asyncio
+from dotenv import load_dotenv
+
+import discord
+from discord import app_commands
 from discord.ui import View, Button, button
-from yt_api import YouTubeURL
+from discord.ext import commands, tasks
+from discord.ext.commands import Context, Greedy
+
+from apis.database_api import OnigiriDB
+from apis.youtube_api import YouTubeURL
+
+from tools import log_time, render_schedule, validate_yt
+from tools.constants import *
 
 load_dotenv()
-
-# Toggle between global sync or dev server sync
-DEV = False
-YES = "✅  "
-NO = "❌  "
-DD = "<:dd:992623483563561030>"
-DR = "<:dr:992624464078585916>"
-TR = "<:tr:992625824140361728>"
-ED = "<:ed:992627365102485624>"
-NONE = "      "
-YT = "▶️"
-STASHED = "❌"
-WARNING = "⚠️"
-CANCELLED = "🚫"
-YR = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=" \
-     r"|embed\/|v\/)?)([\w\-]+)(\S+)?$"
-EMOJIPEDIA = [
-    {
-        "past": "✅",
-        "confirmed": "▶️",
-        "unconfirmed": "💭"
-    },
-    {
-        "past": "🎞️",
-        "confirmed": "🎞️",
-        "unconfirmed": "🎞️"
-    },
-    {
-        "past": "🎆",
-        "confirmed": "🎆",
-        "unconfirmed": "🎆"
-    },
-    {
-        "past": "💿",
-        "confirmed": "💿",
-        "unconfirmed": "💿"
-    },
-    {
-        "past": "✅",
-        "confirmed": "▶️",
-        "unconfirmed": "💭"
-    },
-]
-JST = pytz.timezone("Asia/Tokyo")
-MONTHS = ["jan", 'feb', "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
-EVENT_ID_DESC = "The 4-digit numeric ID associated with each event. (e.g. 1902, 6817, etc.)"
-EVENT_TYPES = ['stream', 'video', 'event', 'release', 'other']
-
-
-def validate_yt(link: str) -> Optional[str]:
-    """
-    Validates a YouTube link against a regex string, and returns the YouTube ID if there is a match.
-
-    :param link: The link to be verified
-    :return: The YouTube ID from the link, if it exists
-    """
-    yt_id = None
-    if match := re.search(YR, link, re.IGNORECASE):
-        yt_id = match.group(6)
-    return yt_id
-
-
-def log_time() -> str:
-    """
-    Returns a string representing the current time.
-
-    :return: String representing the current time
-    """
-    return datetime.now().strftime('[%b %d %H:%M:%S]  ')
-
-
-def is_generic_date(dt: datetime) -> bool:
-    """
-    Checks if a given datetime is a generic date based on whether the time is 23:59:59.
-
-    :param dt: The datetime to check
-    :return: True if the time is 23:59:59, False if not
-    """
-    if dt:
-        return dt.hour == 23 and dt.minute == 59 and dt.second == 59
-
-
-def will_use_timestamp(event: dict) -> bool:
-    """
-    Checks if a given event should be displayed with a Discord timestamp.
-
-    :param event: The event to check
-    :return: True if the event should be displayed with a Discord timestamp, False if not
-    """
-    dt: datetime = event.get("datetime")
-    return event.get("confirmed") or (event.get('type') == 2 and not is_generic_date(dt))
-
-
-def format_event_time(event: dict, relative: bool = False) -> str:
-    """
-    Formats the time displayed next to an event.
-
-    :param event: The event to format
-    :param relative: If the Discord timestamp should be relative
-    :return: A string representing the datetime of an event
-    """
-    dt: datetime = event.get("datetime")
-    if dt:
-        if will_use_timestamp(event):
-            return f"<t:{int(dt.timestamp())}:{'R' if relative else 'f'}>"
-        else:
-            now = datetime.now(JST)
-            if dt.year == now.year and dt.month == now.month and dt.day == now.day:
-                base_str = "Today"
-                time_format = ""
-            else:
-                base_str = ""
-                time_format = "%b %-d"
-            if dt.year != now.year and not (now.month == 12 and dt.year - 1 == now.year):
-                time_format += ", %Y"
-            if not is_generic_date(dt):
-                time_format += f"{',' if base_str else ' '} %H:%M"
-            return base_str + dt.strftime(time_format)
-    else:
-        return "Unknown"
-
-
-def get_headline(talent: str = ""):
-    """
-    Gets the headline of a schedule.
-    :param talent: The name of the talent the schedule is for
-    :return: A string of a formatted headline
-    """
-    if talent:
-        talent_name_with_possessive = talent + ("'" if talent.endswith("s") else "'s")
-        headline = f'__**{talent_name_with_possessive} unofficial schedule**__'
-    else:
-        headline = "__**A schedule**__:"
-    return headline + "\n(Events with Discord Timestamps are in your **local timezone**," \
-                      f" all other times are in **JST**.)\n"
-
-
-def separate_events(event_list: list) -> (list, list, list):
-    """
-    Separates a list of events into the past, future and unspecified.
-
-    :param event_list: The list of events to separate
-    :return: Three lists of events, past_list, future_list and unspecified_list
-    """
-    future_list = []
-    past_list = []
-    unspecified_list = []
-
-    time_now = datetime.now(JST)
-
-    for e in event_list:
-        e_datetime = e.get("datetime")
-        if e_datetime:
-            if e_datetime > time_now:
-                future_list.append(e)
-            else:
-                past_list.append(e)
-        else:
-            unspecified_list.append(e)
-    return past_list, future_list, unspecified_list
-
-
-def is_on_same_day(dt1: datetime, dt2: datetime) -> bool:
-    """
-    Checks if two events occur on the same day.
-    """
-    # TODO: Add support for more granular events to be compared
-    if not dt1 and not dt2:
-        return True
-    if not dt1 or not dt2:
-        return False
-    return dt1.year == dt2.year and dt1.month == dt2.month and dt1.day == dt2.day
-
-
-def render_past_events(past_list: [dict], amount: int = 0) -> [str]:
-    """
-    Renders the "Past Events" section of the schedule.
-
-    :param past_list: A list of events representing past events in descending order.
-    :param amount: The amount of events to display. Defaults to 0 (unlimited).
-    :return: A formatted list of strings representing past events.
-    """
-    if not past_list:
-        return []
-
-    total_length = len(past_list)
-    past_list = past_list[:amount][::-1]
-    contents = [
-        f"🗂️  __**Past {min(amount, len(past_list))} Event{'s' if len(past_list) != 1 else ''}**__ "
-        f"({total_length} total)"]
-
-    for i in range(len(past_list)):
-        event = past_list[i]
-        is_last = i == len(past_list) - 1
-        nl_prefix = f"{NONE if is_last else DD}{' ' * 13}"
-        s = "~~" if event.get("stashed") else ""
-
-        contents.append(f"{DD}")
-        contents.append(
-            f"{TR if is_last else DR}  ||`{event.get('event_id')}`||  "
-            f"{EMOJIPEDIA[event.get('type')].get('past') if not s else STASHED}  "
-            f"**{s}{format_event_time(event)}{s}**")
-
-        contents.append(f"{nl_prefix}{s}{event.get('title')}{s}")
-        if event.get("url"):
-            contents.append(f"{nl_prefix}{s}<{event.get('url')}>{s}")
-        if event.get("note"):
-            contents.append(f"{nl_prefix}*({event.get('note')})*")
-    return contents
-
-
-def render_next_up(event: dict) -> [str]:
-    """
-    Renders the "Next Up" section of the schedule.
-
-    :param event: The event that is next up.
-    :return: A formatted list of strings representing the next up event.
-    """
-    if not event:
-        return []
-
-    nl_prefix = f"{DD}{' ' * 7}"
-    s = "~~" if event.get("stashed") else ""
-
-    emoji = EMOJIPEDIA[event.get('type')].get(
-        'confirmed' if event.get('confirmed') else 'unconfirmed') if not s else STASHED
-
-    contents = [
-        f"⏰  __**Next Up**__",
-        f"{DD}",
-        f"||`{event.get('event_id')}`||   {emoji}  **{s}{format_event_time(event)}{s}**"
-    ]
-
-    if will_use_timestamp(event):
-        contents.append(f"{DD}")
-    contents.append(f"{nl_prefix}**{s}{event.get('title')}{s}**")
-
-    if event.get('url'):
-        contents.append(f"{nl_prefix}{s}<{event.get('url')}>{s}")
-    if will_use_timestamp(event):
-        contents.append(f"{nl_prefix}{s}{format_event_time(event, True)}{s}")
-    if event.get("note"):
-        contents.append(f"{nl_prefix}*({event.get('note')})*")
-
-    return contents
-
-
-def render_future(future_list: [dict]) -> [str]:
-    """
-    Renders the "Upcoming" section of the schedule.
-
-    :param future_list: A list of events representing upcoming events.
-    :return: A formatted list of strings representing the upcoming events.
-    """
-    # TODO: Add back stubby!!!
-    if not future_list:
-        return []
-
-    contents = [f"☁️  __**Upcoming**__"]
-    previous_event = {}
-    for event in future_list:
-        dt = event.get('datetime')
-        uses_timestamp = will_use_timestamp(event)
-        nl_prefix = f"{DD}{' ' * 7}"
-        s = "~~" if event.get("stashed") else ""
-
-        emoji = (EMOJIPEDIA[event.get('type')].get(
-            'confirmed' if event.get('confirmed') else 'unconfirmed')) if not s else STASHED
-
-        if not is_on_same_day(previous_event.get('datetime'), dt) or previous_event.get("note"):
-            contents.append(f"{DD}")
-
-        contents.append(
-            f"||`{event.get('event_id')}`||   {emoji}  "
-            f"{s}**{format_event_time(event)}**"
-            f"{('  ' + event.get('title')) if not uses_timestamp else ''}{s}")
-
-        if uses_timestamp:
-            contents.append(f"{nl_prefix}{s}{event.get('title')}{s}")
-        if event.get("url"):
-            contents.append(f"{nl_prefix}{s}<{event.get('url')}>{s}")
-        if event.get("note"):
-            contents.append(f"{nl_prefix}*({event.get('note')})*")
-        previous_event = event
-
-    contents.append(f"{ED}")
-    return contents
 
 
 class Onigiri(commands.Bot):
@@ -315,69 +31,46 @@ class Onigiri(commands.Bot):
         print(f'{log_time()}Logged in as {self.user} (ID: {self.user.id})')
         print(f'{log_time()}Starting refresh loop!')
         self.loop_refresh.start()
+    
+    async def new_schedule(self, guild_id: int, channel_id: int):
+        guild = self.get_guild(guild_id)
+        print(f"{log_time()}Creating new schedule for guild {guild.name} ({guild.id}).")
+        channel = self.get_channel(channel_id)
+        message = await channel.send(content=".")
+        return message
 
-    async def refresh(self, guild_id, channel_id=None, talent_name=None):
-        print(f"{log_time()}Refreshing guild {guild_id}.")
-        if not self.get_guild(guild_id):
+    async def update_schedule(self, guild_id: int) -> Optional[discord.Message]:
+        guild = self.db.get_guild(guild_id)
+        print(f"{log_time()}Updating schedule for guild {guild.name} ({guild.id}).")
+
+        if not guild:
             print(f"{log_time()}    ↳ {guild_id}: This instance is not in the guild.")
             print(f"{log_time()}")
             return
-        guild = self.db.get_guild(guild_id)
+
         events = self.db.get_guild_events(guild_id)
-        channel = self.get_channel(channel_id or guild.get("schedule_channel_id"))
+        channel = self.get_channel(guild.get("schedule_channel_id"))
         if not channel:
-            raise ValueError
+            raise discord.NotFound
 
-        talent_name: str = talent_name or guild.get("talent")
-        content_list = [get_headline(talent_name)]
-
-        if guild.get("description"):
-            content_list.append(f"> {guild.get('description')}\n")
-
-        content_list += [f"> *Last refreshed <t:{int(datetime.now().timestamp())}:R>.*"]
-
-        if events:
-            past, future, unspecified = separate_events(events)
-            if past:
-                content_list += [f'> ***{len(past)}** events in history.*']
-                content_list += [""]
-
-            future = future[::-1] + unspecified
-
-            content_list += [""] if guild.get("enabled") or not guild else ["⛔  *Currently disabled.*", ""]
-            if future:
-                content_list += render_next_up(future[0])
-                if len(future) > 1:
-                    content_list += [f"{DD}"]
-                    content_list += render_future(future[1:])
-                else:
-                    content_list += [f"{ED}"]
-            else:
-                content_list += ["> *Nothing planned in the future. Use **/add**, or **/add-yt** to add some events!*"]
-        else:
-            content_list += ["\n> *No events. Use **/add**, or **/add-yt** to add some events!*"]
-
-        content = "\n".join(content_list)
+        message = await channel.fetch_message(guild.get("schedule_message_id"))
+        content = render_schedule(guild, events)
         print(f"{log_time()}    ↳ {guild_id}: Message length currently {len(content)}")
 
-        if not channel_id:
-            try:
-                message = await channel.fetch_message(guild.get("schedule_message_id"))
-                message = await message.edit(content=content)
-            except discord.NotFound:
-                message = await channel.send(content=content)
-                self.db.add_or_edit_guild(guild_id, channel.id, message.id)
-        else:
-            message = await channel.send(content=content)
-        return message
+        return await message.edit(content=content)
 
     @tasks.loop(minutes=5)
     async def loop_refresh(self):
         for guild in self.db.get_all_enabled_guilds():
             try:
-                await self.refresh(guild.get("guild_id"))
+                await self.update_schedule(guild.get("guild_id"))
             except discord.Forbidden:
-                print(f"{log_time()}    ↳ {guild.get('guild_id')}: Message does not belong to this instance.")
+                print(f"{log_time()}    "
+                      f"↳ {guild.get('guild_id')}: Missing permissions to update message.")
+                print(f"{log_time()}")
+            except ValueError:
+                print(f"{log_time()}    "
+                      f"↳ {guild.get('guild_id')}: Schedule message or channel not found.")
                 print(f"{log_time()}")
 
     @loop_refresh.before_loop
@@ -413,8 +106,8 @@ if __name__ == "__main__":
                     except discord.Forbidden:
                         error = "**Command failed.** Check that the bot has the permissions to **view**, " \
                                 "and **send messages** in the schedule channel."
-                    except ValueError:
-                        error = "**Command failed.** The schedule channel no longer exists! Please run **/setup**."
+                    except discord.NotFound:
+                        error = "**Command failed.** The schedule channel / message no longer exists! Please run **/setup**."
                 else:
                     error = "I'm currently **disabled** on the server! Please run **/enable** to enable me again."
             else:
@@ -531,7 +224,7 @@ if __name__ == "__main__":
                                     message = f"{YES}**Event `{event_id}` updated.**"
                                 await interaction.edit_original_message(
                                     content=message, view=None)
-                                return await interaction.client.refresh(interaction.guild.id)
+                                return await interaction.client.update_schedule(interaction.guild.id)
                             else:
                                 await interaction.edit_original_message(
                                     content=f"{CANCELLED}  **Ignoring YouTube link...**", view=None)
@@ -600,7 +293,7 @@ if __name__ == "__main__":
 
 
     @tree.command(description="Must be run at least once! "
-                              "Sets up the bot, or edits configuration for the server.")
+                              "Sets up the bot, or edits schedule channel for the server.")
     @app_commands.describe(channel="The channel to keep the schedule message in.")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
@@ -614,13 +307,15 @@ if __name__ == "__main__":
         current_channel = interaction.client.db.get_guild(guild_id).get("schedule_channel_id")
         if not current_channel or current_channel != schedule_channel_id:
             try:
-                message = await interaction.client.refresh(guild_id, schedule_channel_id)
+                message = await interaction.client.new_schedule(guild_id, schedule_channel_id)
             except discord.Forbidden:
                 await interaction.followup.send(
                     f"{NO}**Setup failed.** Check that the bot has the permissions to **view**, "
                     "and **send messages** in the correct channel.")
                 return
+
             interaction.client.db.add_or_edit_guild(guild_id, schedule_channel_id, message.id)
+            await interaction.client.update_schedule(guild_id)
             await interaction.followup.send(
                 f"{YES}**The schedule message channel has been set to <#{schedule_channel_id}>**, "
                 f"and a new message was created.\n> <{message.jump_url}>")
@@ -644,7 +339,7 @@ if __name__ == "__main__":
         else:
             error = "**This server has not yet been set up!** Please run **/setup** first."
             await interaction.response.send_message(NO + error, ephemeral=True)
-        await interaction.client.refresh(interaction.guild.id)
+        await interaction.client.update_schedule(interaction.guild.id)
 
 
     @tree.command(description="Enables the bot on this server.")
@@ -662,7 +357,7 @@ if __name__ == "__main__":
         else:
             error = "**This server has not yet been set up!** Please run **/setup** first."
             await interaction.response.send_message(NO + error, ephemeral=True)
-        await interaction.client.refresh(interaction.guild.id)
+        await interaction.client.update_schedule(interaction.guild.id)
 
 
     @tree.command(name="set-editor", description="Sets a role that can access commands to edit the schedule.")
@@ -699,7 +394,7 @@ if __name__ == "__main__":
         await interaction.response.send_message(
             f"{YES}**The description has been set.**" if description else
             f"{YES}**The description has been reset.**", ephemeral=True)
-        await interaction.client.refresh(interaction.guild.id)
+        await interaction.client.update_schedule(interaction.guild.id)
 
 
     @tree.command(name="set-talent", description="Sets the name of the talent the schedule is for.")
@@ -720,7 +415,7 @@ if __name__ == "__main__":
         await interaction.response.send_message(
             f"{YES}The talent has been set to **{name}**." if name else
             f"{YES}The talent has been **reset**.", ephemeral=True)
-        await interaction.client.refresh(interaction.guild.id)
+        await interaction.client.update_schedule(interaction.guild.id)
 
 
     @tree.command(name="server-info", description="This server's configuration at a glance.")
@@ -793,7 +488,7 @@ if __name__ == "__main__":
     @app_commands.check(manage_messages)
     async def refresh(interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        await interaction.client.refresh(interaction.guild.id)
+        await interaction.client.update_schedule(interaction.guild.id)
         await interaction.followup.send(content=f"{YES}**Schedule refreshed.**", ephemeral=True)
 
 
@@ -996,7 +691,7 @@ if __name__ == "__main__":
             await interaction.response.send_message(f"{YES}**Event `{event_id}` added!**", ephemeral=True)
         except discord.InteractionResponded:
             await interaction.edit_original_message(content = f"{YES}**Event `{event_id}` added!**")
-        await interaction.client.refresh(interaction.guild.id)
+        await interaction.client.update_schedule(interaction.guild.id)
 
 
     @tree.command(name="add-yt", description="Adds an event to the schedule using a YouTube URL.")
@@ -1013,7 +708,7 @@ if __name__ == "__main__":
             await interaction.response.send_message(f"{NO}**No valid YouTube link found.**", ephemeral=True)
         except discord.InteractionResponded:
             await interaction.edit_original_message(content=f"{NO}**Cancelled.**")
-        await interaction.client.refresh(interaction.guild.id)
+        await interaction.client.update_schedule(interaction.guild.id)
 
 
     @tree.command(description="Deletes an event from the schedule.")
@@ -1033,7 +728,7 @@ if __name__ == "__main__":
             if confirm.value:
                 interaction.client.db.delete_event(interaction.guild.id, event_id)
                 await interaction.edit_original_message(content=f"{YES}**Event `{event_id}` deleted.**", view=None)
-                await interaction.client.refresh(interaction.guild.id)
+                await interaction.client.update_schedule(interaction.guild.id)
             else:
                 await interaction.edit_original_message(content=f"{CANCELLED}  **Cancelled.**", view=None)
         else:
@@ -1106,7 +801,7 @@ if __name__ == "__main__":
             await interaction.response.send_message(f"{YES}**Event `{event_id}` updated.**", ephemeral=True)
         except discord.InteractionResponded:
             await interaction.edit_original_message(content=f"{YES}**Event `{event_id}` updated.**")
-        await interaction.client.refresh(interaction.guild.id)
+        await interaction.client.update_schedule(interaction.guild.id)
 
 
     @tree.command(name="title", description="Edits the title of an event.")
@@ -1121,7 +816,7 @@ if __name__ == "__main__":
     async def edit_title(interaction: discord.Interaction, event_id: str, title: str):
         interaction.client.db.edit_event_title(interaction.guild.id, event_id, title)
         await interaction.response.send_message(f"{YES}**Title of event `{event_id}` updated.**", ephemeral=True)
-        await interaction.client.refresh(interaction.guild.id)
+        await interaction.client.update_schedule(interaction.guild.id)
 
 
     @tree.command(name="url", description="Edits the URL of an event. Enter nothing to reset the URL. "
@@ -1147,7 +842,7 @@ if __name__ == "__main__":
             await interaction.edit_original_message(
                 content=f"{YES}**URL of event `{event_id}` {'updated' if not reset else 'reset'}.**")
 
-        await interaction.client.refresh(interaction.guild.id)
+        await interaction.client.update_schedule(interaction.guild.id)
 
 
     @tree.command(name="date", description="Edits the date of an event. "
@@ -1172,7 +867,7 @@ if __name__ == "__main__":
         interaction.client.db.edit_event_datetime(interaction.guild.id, event_id, dt)
         await interaction.response.send_message(
             f"{YES}**Date of event `{event_id}` {'updated' if not reset else 'reset'}.**", ephemeral=True)
-        await interaction.client.refresh(interaction.guild.id)
+        await interaction.client.update_schedule(interaction.guild.id)
 
 
     @tree.command(name="time", description="Edits the time of an event. "
@@ -1201,7 +896,7 @@ if __name__ == "__main__":
         interaction.client.db.edit_event_datetime(interaction.guild.id, event_id, dt)
         await interaction.response.send_message(
             f"{YES}**Time of event `{event_id}` {'updated' if not reset else 'reset'}.**", ephemeral=True)
-        await interaction.client.refresh(interaction.guild.id)
+        await interaction.client.update_schedule(interaction.guild.id)
 
 
     @tree.command(name="type", description="Edits the type of an event.")
@@ -1223,7 +918,7 @@ if __name__ == "__main__":
         interaction.client.db.edit_event_type(interaction.guild.id, event_id, t)
         await interaction.response.send_message(
             f"{YES}**Type of event `{event_id}` {'updated' if not reset else 'reset'}.**", ephemeral=True)
-        await interaction.client.refresh(interaction.guild.id)
+        await interaction.client.update_schedule(interaction.guild.id)
 
 
     @tree.command(description="Stashes an event. An event will appear crossed out when stashed, "
@@ -1240,7 +935,7 @@ if __name__ == "__main__":
         if not is_stashed:
             interaction.client.db.edit_event_stashed(interaction.guild.id, event_id, True)
             await interaction.response.send_message(f"{YES}**Event `{event_id}` stashed.**", ephemeral=True)
-            await interaction.client.refresh(interaction.guild.id)
+            await interaction.client.update_schedule(interaction.guild.id)
         else:
             await interaction.response.send_message(f"{NO}**Event `{event_id}` is already stashed!**", ephemeral=True)
 
@@ -1257,7 +952,7 @@ if __name__ == "__main__":
         if is_stashed:
             interaction.client.db.edit_event_stashed(interaction.guild.id, event_id, False)
             await interaction.response.send_message(f"{YES}**Event `{event_id}` unstashed.**", ephemeral=True)
-            await interaction.client.refresh(interaction.guild.id)
+            await interaction.client.update_schedule(interaction.guild.id)
         else:
             await interaction.response.send_message(f"{NO}**Event `{event_id}` is not stashed!**", ephemeral=True)
 
@@ -1281,7 +976,7 @@ if __name__ == "__main__":
         interaction.client.db.edit_event_note(interaction.guild.id, event_id, note)
         await interaction.response.send_message(f"{YES}**Note to event `{event_id}` updated.**" if note else
                                                 f"{YES}**Note to event `{event_id}` deleted.**", ephemeral=True)
-        await interaction.client.refresh(interaction.guild.id)
+        await interaction.client.update_schedule(interaction.guild.id)
 
 
     tree.add_command(Reset())

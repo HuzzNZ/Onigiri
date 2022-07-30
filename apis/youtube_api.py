@@ -1,9 +1,9 @@
 import datetime
+import os
 
 import pytz
-from dotenv import load_dotenv
-import os
 import isodate
+from dotenv import load_dotenv
 
 import googleapiclient.discovery
 
@@ -15,7 +15,8 @@ class YouTubeURL:
         api_service_name = "youtube"
         api_version = "v3"
 
-        self.__api = googleapiclient.discovery.build(api_service_name, api_version, developerKey=os.getenv("YT_API"))
+        self.__api = googleapiclient.discovery.build(
+            api_service_name, api_version, developerKey=os.getenv("YT_API"))
 
         self.__part = "snippet, liveStreamingDetails, status, contentDetails"
         self.v_id = v_id
