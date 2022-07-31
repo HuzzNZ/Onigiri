@@ -1,5 +1,5 @@
-import datetime
 import os
+import datetime
 import random
 import string
 from typing import Union
@@ -14,8 +14,8 @@ load_dotenv()
 
 def sanitize_formatting(to_sanitize: str) -> str:
     characters_to_sanitize = [
-        '\\', '`', '-', '=', '[', ']', '\'', ',', '.', '~', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')',
-        '_', '+', '{', '}', '|', ':', '"', '?', '/'
+        '\\', '`', '-', '=', '[', ']', '\'', ',', '.', '~', '!', '@', '#', '$', '%', '^', '&', '*',
+        '(', ')', '_', '+', '{', '}', '|', ':', '"', '?', '/'
     ]
     new_string = ""
     for char in to_sanitize:
