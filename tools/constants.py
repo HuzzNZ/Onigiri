@@ -1,4 +1,5 @@
 import pytz
+import logging
 
 DD = "<:dd:992623483563561030>"
 DR = "<:dr:992624464078585916>"
@@ -17,6 +18,13 @@ EVENT_ID_DESC = "The 4-digit numeric ID associated with each event. (e.g. 1902, 
 EVENT_TYPES = ['stream', 'video', 'event', 'release', 'other']
 YR = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=" \
      r"|embed\/|v\/)?)([\w\-]+)(\S+)?$"
+
+LOG_HANDLER = logging.StreamHandler()
+fmt = logging.Formatter(
+    '%(asctime)s [%(levelname)-8s] onigiri: %(message)s',
+    "[%Y-%m-%d %H:%M:%S]"
+)
+LOG_HANDLER.setFormatter(fmt)
 
 EMOJIPEDIA = [
     {
