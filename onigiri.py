@@ -73,7 +73,6 @@ class Onigiri(commands.Bot):
             except discord.NotFound:
                 self.logger.warning(
                     f"    ↳ {guild.get('guild_id')}: Schedule message or channel not found.")
-            self.logger.info("")
 
     @loop_refresh.before_loop
     async def before_loop(self):
