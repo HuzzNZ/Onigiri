@@ -1,20 +1,16 @@
 import os
-from functools import wraps
 from typing import List, Optional, Literal
 
-import asyncio
 from dotenv import load_dotenv
 
 import discord
 from discord import app_commands
-from discord.ui import View, Button, button
 from discord.ext import commands, tasks
 from discord.ext.commands import Context, Greedy
 
 from apis.database_api import OnigiriDB
-from apis.youtube_api import YouTubeURL
 
-from tools import log_time, render_schedule, validate_yt, parse_time, parse_type, parse_date
+from tools import *
 from tools.constants import *
 
 load_dotenv()
@@ -84,167 +80,10 @@ if __name__ == "__main__":
     tree = bot.tree
 
 
-    class NoGuildFound(discord.app_commands.CheckFailure):
-        def __init__(self, message=""):
-            super(NoGuildFound, self).__init__(message)
-
-
-    def check_perms(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            try:
-                interaction: discord.Interaction = args[0]
-            except AttributeError:
-                interaction: discord.Interaction = args[1]
-
-            guild = interaction.client.db.check_guild_exists(interaction.guild.id)
-            error = ""
-            if guild:
-                current_channel = guild.get("schedule_channel_id")
-                current_message = guild.get("schedule_message_id")
-                bad_message = False
-                try:
-                    await interaction.client.get_channel(current_channel).fetch_message(current_message)
-                except (discord.NotFound, discord.Forbidden, AttributeError):
-                    error = "**Command failed.** The schedule channel/message cannot be found! Please run **/setup**."
-                    bad_message = True
-                if not bad_message:
-                    if guild.get('enabled'):
-                        return await func(*args, **kwargs)
-                    else:
-                        error = "I'm currently **disabled** on the server! Please run **/enable** to enable me again."
-            else:
-                raise NoGuildFound
-
-            try:
-                await interaction.response.send_message(NO + error, ephemeral=True)
-            except discord.InteractionResponded:
-                try:
-                    await interaction.edit_original_message(content=NO + error)
-                except discord.InteractionResponded:
-                    await interaction.followup.send(content=NO + error, ephemeral=True)
-
-        return wrapper
-
-
-    def check_event_id(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            interaction: discord.Interaction = args[0]
-            event_id = kwargs.get("event_id")[:4]
-            kwargs["event_id"] = event_id
-            event = interaction.client.db.check_event_exists(interaction.guild.id, event_id)
-            if event:
-                return await func(*args, **kwargs)
-            else:
-                error = f"**No event with ID `{event_id}` found!**"
-                await interaction.response.send_message(NO + error, ephemeral=True)
-
-        return wrapper
-
-
-    def check_date_time(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            interaction: discord.Interaction = args[0]
-            try:
-                return await func(*args, **kwargs)
-            except ValueError:
-                error = f"**Bad date/time input.** Please check your input again for errors."
-                await interaction.response.send_message(NO + error, ephemeral=True)
-
-        return wrapper
-
-
-    def check_title(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            interaction: discord.Interaction = args[0]
-            title: str = kwargs.get("title", "")
-            if title is not None:
-                if len(title) > 30:
-                    return await interaction.response.send_message(
-                        f"{NO}**Title too long!** Max 30 characters. (Currently {len(title)})", ephemeral=True)
-                elif not title:
-                    return await interaction.response.send_message(
-                        f"{NO}**Title cannot be empty!**", ephemeral=True)
-            return await func(*args, **kwargs)
-
-        return wrapper
-
-
-    def check_url(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            interaction: discord.Interaction = args[0]
-            event_id: str = kwargs.get("event_id", "")
-            url: str = kwargs.get("url")
-            if url:
-                if not (url.startswith("http://") or url.startswith("https://")):
-                    return await interaction.response.send_message(
-                        f"{NO}**Invalid URL!** URLs should begin with `http://` or `https://`.", ephemeral=True)
-                yt_id = validate_yt(url)
-                if yt_id:
-                    video = YouTubeURL(yt_id)
-                    if video.valid:
-                        await interaction.response.defer(ephemeral=True)
-                        confirm = PopulateFromURLView()
-                        timestamp = f"<t:{int(video.get_datetime_jst().timestamp())}:f>"
-                        if event_id:
-                            title = interaction.client.db.get_event(interaction.guild.id, event_id).get("title")
-                        else:
-                            title = kwargs.get("title", '') or video.get_event_title()
-                        await interaction.followup.send(
-                            content=
-                            f"{YT}  **YouTube link found.**\n\n"
-                            f"> **Title**: {title}\n"
-                            f"> **URL**: <{video.url}>\n"
-                            f"> **Timestamp**: {timestamp}\n"
-                            f"> **Type**: `{EVENT_TYPES[video.get_event_type()]}`\n\n"
-                            f"**Do you want to use these for the event?**", view=confirm, ephemeral=True)
-                        timeout = await confirm.wait()
-                        if not timeout:
-                            if confirm.value:
-                                if not event_id:
-                                    event_id = interaction.client.db.add_event(
-                                        interaction.guild.id,
-                                        title,
-                                        video.get_event_type(),
-                                        video.url,
-                                        video.get_datetime_jst(),
-                                        True
-                                    )
-                                    message = f"{YES}**Event `{event_id}` added!**"
-                                else:
-                                    interaction.client.db.edit_event(
-                                        interaction.guild.id,
-                                        event_id,
-                                        title,
-                                        video.get_event_type(),
-                                        video.url,
-                                        video.get_datetime_jst(),
-                                        True
-                                    )
-                                    message = f"{YES}**Event `{event_id}` updated.**"
-                                await interaction.edit_original_message(
-                                    content=message, view=None)
-                                return await interaction.client.update_schedule(interaction.guild.id)
-                            else:
-                                await interaction.edit_original_message(
-                                    content=f"{CANCELLED}  **Ignoring YouTube link...**", view=None)
-                                await asyncio.sleep(1)
-                        else:
-                            await interaction.edit_original_message(
-                                content=f"{CANCELLED}  **Confirmation timed out, ignoring YouTube link...**", view=None)
-                            await asyncio.sleep(1)
-            return await func(*args, **kwargs)
-        return wrapper
-
-
     async def manage_messages(interaction: discord.Interaction) -> bool:
         guild = interaction.client.db.check_guild_exists(interaction.guild.id)
         if not guild:
-            raise NoGuildFound
+            raise GuildNotRegistered
         try:
             guild_channel = interaction.client.get_channel(guild.get("schedule_channel_id"))
             perms = guild_channel.permissions_for(interaction.user).manage_messages
@@ -261,36 +100,7 @@ if __name__ == "__main__":
         return interaction.user.guild_permissions.manage_channels
 
 
-    class ConfirmView(View):
-        def __init__(self):
-            super().__init__(timeout=60)
-            self.value = None
 
-        @button(label='Confirm', style=discord.ButtonStyle.danger)
-        async def confirm(self, interaction: discord.Interaction, b: Button):
-            self.value = True
-            self.stop()
-
-        @button(label='Cancel', style=discord.ButtonStyle.secondary)
-        async def cancel(self, interaction: discord.Interaction, b: Button):
-            self.value = False
-            self.stop()
-
-
-    class PopulateFromURLView(View):
-        def __init__(self):
-            super().__init__(timeout=300)
-            self.value = None
-
-        @button(label='Use all', style=discord.ButtonStyle.blurple)
-        async def replace_all(self, interaction: discord.Interaction, b: Button):
-            self.value = True
-            self.stop()
-
-        @button(label="Don't use", style=discord.ButtonStyle.secondary)
-        async def cancel(self, interaction: discord.Interaction, b: Button):
-            self.value = False
-            self.stop()
 
 
     # Maintenance / Utility Commands
@@ -376,7 +186,7 @@ if __name__ == "__main__":
     @app_commands.rename(editor="role")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
-    @check_perms
+    @check_general
     @app_commands.check(manage_channels)
     async def set_editor(interaction: discord.Interaction, editor: discord.Role = None):
         editor_id = editor.id if editor else None
@@ -391,7 +201,7 @@ if __name__ == "__main__":
                                        "Formatting will not work, but emojis will. (Max 200 characters)")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
-    @check_perms
+    @check_general
     @app_commands.check(manage_channels)
     async def set_description(interaction: discord.Interaction, description: str = ""):
         if len(description) > 200:
@@ -412,7 +222,7 @@ if __name__ == "__main__":
     @app_commands.describe(name="The name of talent that the schedule is for. (Max 40 characters)")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
-    @check_perms
+    @check_general
     @app_commands.check(manage_channels)
     async def set_talent(interaction: discord.Interaction, name: str = ""):
         if len(name) > 40:
@@ -432,7 +242,7 @@ if __name__ == "__main__":
     @tree.command(name="server-info", description="This server's configuration at a glance.")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
-    @check_perms
+    @check_general
     @app_commands.check(manage_channels)
     async def server_info(interaction: discord.Interaction):
         guild = interaction.client.db.get_guild(interaction.guild.id)
@@ -455,7 +265,7 @@ if __name__ == "__main__":
         @app_commands.command(description="Resets all future events in this server.")
         @app_commands.guild_only()
         @app_commands.default_permissions(manage_channels=True)
-        @check_perms
+        @check_general
         @app_commands.check(manage_channels)
         async def future(self, interaction: discord.Interaction):
             await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
@@ -463,7 +273,7 @@ if __name__ == "__main__":
         @app_commands.command(description="Resets all past events in this server.")
         @app_commands.guild_only()
         @app_commands.default_permissions(manage_channels=True)
-        @check_perms
+        @check_general
         @app_commands.check(manage_channels)
         async def past(self, interaction: discord.Interaction):
             await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
@@ -471,7 +281,7 @@ if __name__ == "__main__":
         @app_commands.command(description="Resets all events in this server.")
         @app_commands.guild_only()
         @app_commands.default_permissions(manage_channels=True)
-        @check_perms
+        @check_general
         @app_commands.check(manage_channels)
         async def events(self, interaction: discord.Interaction):
             await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
@@ -479,7 +289,7 @@ if __name__ == "__main__":
         @app_commands.command(description="Resets all configuration in this server.")
         @app_commands.guild_only()
         @app_commands.default_permissions(manage_channels=True)
-        @check_perms
+        @check_general
         @app_commands.check(manage_channels)
         async def config(self, interaction: discord.Interaction):
             await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
@@ -487,7 +297,7 @@ if __name__ == "__main__":
         @app_commands.command(description="Resets all events, and all configuration in this server.")
         @app_commands.guild_only()
         @app_commands.default_permissions(manage_channels=True)
-        @check_perms
+        @check_general
         @app_commands.check(manage_channels)
         async def all(self, interaction: discord.Interaction):
             await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
@@ -495,7 +305,7 @@ if __name__ == "__main__":
 
     @tree.command(description="Manually refreshes the schedule message.")
     @app_commands.guild_only()
-    @check_perms
+    @check_general
     @app_commands.check(manage_messages)
     async def refresh(interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -509,9 +319,11 @@ if __name__ == "__main__":
 
     @tree.command(name="help", description="Links to the documentation page for the bot.")
     async def help_command(interaction: discord.Interaction):
-        await interaction.response.send_message(f"**Check out the documentations here:**\n"
-                                                f"> <https://huzz.notion.site/Onigiri-Bot-"
-                                                f"Documentation-85760679057645aca767b94c867f3fd7>", ephemeral=True)
+        await interaction.response.send_message(
+            f"**Check out the documentations here:**\n> "
+            f"<https://huzz.notion.site/Onigiri-Bot-Documen"
+            f"tation-85760679057645aca767b94c867f3fd7>",
+            ephemeral=True)
 
 
     # Autocomplete for event types
@@ -539,7 +351,7 @@ if __name__ == "__main__":
     @app_commands.guild_only()
     @app_commands.autocomplete(event_type=type_ac)
     @app_commands.rename(event_type="type")
-    @check_perms
+    @check_general
     @check_date_time
     @check_title
     @check_url
@@ -565,7 +377,7 @@ if __name__ == "__main__":
         url="The YouTube URL linking to a video, premiere, or stream.",
         title="The title of the event. Max 30 characters. Defaults to the title of the YouTube video/stream.")
     @app_commands.guild_only()
-    @check_perms
+    @check_general
     @check_title
     @check_url
     @app_commands.check(manage_messages)
@@ -581,7 +393,7 @@ if __name__ == "__main__":
     @app_commands.describe(event_id=EVENT_ID_DESC)
     @app_commands.rename(event_id="id")
     @app_commands.guild_only()
-    @check_perms
+    @check_general
     @check_event_id
     @app_commands.check(manage_messages)
     async def delete(interaction: discord.Interaction, event_id: str):
@@ -614,7 +426,7 @@ if __name__ == "__main__":
     @app_commands.rename(event_type="type")
     @app_commands.guild_only()
     @app_commands.autocomplete(event_type=type_ac)
-    @check_perms
+    @check_general
     @check_event_id
     @check_title
     @check_url
@@ -675,7 +487,7 @@ if __name__ == "__main__":
     @app_commands.describe(title="The title of the event. Max 30 characters.")
     @app_commands.guild_only()
     @app_commands.rename(event_id="id")
-    @check_perms
+    @check_general
     @check_event_id
     @check_title
     @app_commands.check(manage_messages)
@@ -692,7 +504,7 @@ if __name__ == "__main__":
                                "Enter nothing to clear the URL.")
     @app_commands.guild_only()
     @app_commands.rename(event_id="id")
-    @check_perms
+    @check_general
     @check_event_id
     @check_url
     @app_commands.check(manage_messages)
@@ -719,7 +531,7 @@ if __name__ == "__main__":
                                 "Enter nothing clear the date.")
     @app_commands.rename(event_id="id")
     @app_commands.guild_only()
-    @check_perms
+    @check_general
     @check_event_id
     @check_date_time
     @app_commands.check(manage_messages)
@@ -743,7 +555,7 @@ if __name__ == "__main__":
                                 "Enter nothing to clear the time.")
     @app_commands.rename(event_id="id")
     @app_commands.guild_only()
-    @check_perms
+    @check_general
     @check_event_id
     @check_date_time
     @app_commands.check(manage_messages)
@@ -772,7 +584,7 @@ if __name__ == "__main__":
     @app_commands.guild_only()
     @app_commands.autocomplete(event_type=type_ac)
     @app_commands.rename(event_type="type")
-    @check_perms
+    @check_general
     @check_event_id
     @app_commands.check(manage_messages)
     async def edit_type(interaction: discord.Interaction, event_id: str, event_type: str = ""):
@@ -792,7 +604,7 @@ if __name__ == "__main__":
     @app_commands.describe(event_id=EVENT_ID_DESC)
     @app_commands.rename(event_id="id")
     @app_commands.guild_only()
-    @check_perms
+    @check_general
     @check_event_id
     @app_commands.check(manage_messages)
     async def stash(interaction: discord.Interaction, event_id: str):
@@ -809,7 +621,7 @@ if __name__ == "__main__":
     @tree.command(description="Unstashes an event.")
     @app_commands.describe(event_id=EVENT_ID_DESC)
     @app_commands.guild_only()
-    @check_perms
+    @check_general
     @check_event_id
     @app_commands.check(manage_messages)
     async def unstash(interaction: discord.Interaction, event_id: str):
@@ -828,7 +640,7 @@ if __name__ == "__main__":
     @app_commands.describe(note="The note to the event. Max 30 characters. Enter nothing to delete the note.")
     @app_commands.guild_only()
     @app_commands.rename(event_id="id")
-    @check_perms
+    @check_general
     @check_event_id
     @app_commands.check(manage_messages)
     async def edit_note(interaction: discord.Interaction, event_id: str, note: str = ""):
@@ -849,8 +661,9 @@ if __name__ == "__main__":
 
 
     @tree.error
-    async def on_check_failure(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
-        if isinstance(error, NoGuildFound):
+    async def error_handler(
+            interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+        if isinstance(error, GuildNotRegistered):
             await interaction.response.send_message(
                 f"{NO}**This server has not yet been set up!** Please run **/setup** first.", ephemeral=True)
         elif isinstance(error, discord.app_commands.CheckFailure):
@@ -861,7 +674,10 @@ if __name__ == "__main__":
     @commands.guild_only()
     @commands.is_owner()
     async def sync(
-            ctx: Context, guilds: Greedy[discord.Object], spec: Optional[Literal["~", "*", "^"]] = None) -> None:
+            ctx: Context,
+            guilds: Greedy[discord.Object],
+            spec: Optional[Literal["~", "*", "^"]] = None
+    ) -> None:
         if not guilds:
             if spec == "~":
                 synced = await ctx.bot.tree.sync(guild=ctx.guild)
@@ -876,8 +692,8 @@ if __name__ == "__main__":
                 synced = await ctx.bot.tree.sync()
 
             await ctx.send(
-                f"Synced {len(synced)} commands {'globally' if spec is None else 'to the current guild.'}"
-            )
+                f"Synced {len(synced)} commands "
+                f"{'globally' if spec is None else 'to the current guild.'}")
             return
 
         ret = 0

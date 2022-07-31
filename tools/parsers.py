@@ -1,3 +1,4 @@
+from calendar import monthrange
 from datetime import datetime, timedelta
 from typing import Union
 
@@ -6,60 +7,94 @@ import pytz
 from tools.constants import JST, MONTHS
 
 
-def parse_date(date_str: str) -> Union[datetime, None]:
-    if not date_str:
+def parse_date(date_str: str, g: bool = False) -> Union[datetime, None, dict]:
+    """
+    Parses a datetime given a date string.
+
+    :param date_str: The date string to parse
+    :param g: Optional flag to return a dict of the granularity of the date string.
+    :return: Union[datetime, None, dict]
+    """
+    if not date_str and not g:
         return None
+
     date_str = date_str.lower()
     now = datetime.now(JST)
-    year, month, day = now.year, 0, 0
-    using_current_year = True
+    year, month, day = 0, 0, 0
+
     if "today" in date_str:
         month = now.month
         day = now.day
+
     elif "tomorrow" in date_str:
         tomorrow = now + timedelta(days=1)
         year, month, day = tomorrow.year, tomorrow.month, tomorrow.day
-    if "/" in date_str:
-        dates = date_str.split("/")
+
+    elif "/" in date_str:  # If in format [(YY)YY/]MM/DD
+        dates = [int(x) for x in date_str.split("/")]
+
+        # If in format MM/DD
         if len(dates) == 2:
-            if 0 < int(dates[0]) <= 12:
-                month = int(dates[0])
-            if 0 < int(dates[0]) <= 31:
-                day = int(dates[1])
+            if 1 <= dates[0] <= 12:  # Only set month if MM between 1 and 12
+                month = dates[0]
+            if 1 <= dates[1] <= 31:  # Only set day if DD between 1 and 31
+                day = dates[1]
+            if not month or not day:
+                raise ValueError
+
+        # If in format (YY)YY/MM/DD
         elif len(dates) > 2:
-            if int(dates[0]) < 100:
-                year = 2000 + int(dates[0])
-                using_current_year = False
-            elif 3000 > int(dates[0]) > 2000:
-                year = int(dates[0])
-                using_current_year = False
+            if 0 <= dates[0] <= 99:  # If the year is YY, and between (20)00 and (20)99
+                year = 2000 + dates[0]
+            elif 2000 <= dates[0] <= 2099:  # If the year is YYYY, and between 2000 and 2099
+                year = dates[0]
             else:
                 raise ValueError
-            month = int(dates[1])
-            day = int(dates[2])
-    else:
-        dates = date_str.replace(",", " ").split(" ")
-        for date in dates:
-            if not month:
-                for i in range(len(MONTHS)):
-                    if MONTHS[i] in date:
-                        month = i + 1
-                        break
-        numbers = [int(x) for x in dates if x.isdigit()]
-        for n in numbers:
-            if 0 < n <= 31 and not day:
-                day = n
-            elif 3000 > n > 2000:
-                year = n
-                using_current_year = False
 
-    if not month or not day:
-        raise ValueError
-    else:
-        if using_current_year and month < datetime.now(JST).month:
+            if 1 <= dates[1] <= 12:  # Only set month if MM between 1 and 12
+                month = dates[1]
+            if 1 <= dates[2] <= 31:  # Only set day if DD between 1 and 31
+                day = dates[2]
+            if not month or not day:
+                raise ValueError
+
+    else:  # If in any other format, like July 15, or 12 Sept
+        dates = date_str.replace(",", " ").split(" ")
+        for date in dates:  # Find the month
+            if month:
+                break
+            for i in range(len(MONTHS)):
+                if MONTHS[i] in date:
+                    month = i + 1
+                    break
+
+        # Clean up numbers
+        numbers = [x.strip("th").strip("st").strip("nd").strip("rd") for x in dates]
+        numbers = [int(x) for x in numbers if x.isdigit()]
+        for n in numbers:
+            if 1 <= n <= 31 and not day:
+                if month:
+                    day = n
+            elif 2000 <= n <= 2099:
+                year = n
+
+    if g:
+        return {
+            'year': bool(year),
+            'month': bool(month),
+            'day': bool(day)
+        }
+
+    if not month:
+        month = 12
+    if not year:
+        year = now.year
+        if month < datetime.now(JST).month:
             year += 1
-        return datetime(year, month, day, 14, 59, 59, 0).replace(
-            tzinfo=pytz.utc).astimezone(JST)
+    if not day:
+        day = monthrange(year, month)[1]
+
+    return datetime(year, month, day, 14, 59, 59, 0).replace(tzinfo=pytz.utc).astimezone(JST)
 
 
 def parse_time(time_str: str, dt: datetime = None) -> Union[datetime, None]:

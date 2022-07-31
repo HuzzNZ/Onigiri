@@ -31,13 +31,20 @@ def log_time() -> str:
 
 
 def render_schedule(guild: dict, events: [dict]) -> str:
+    """
+    Returns a rendered string of a guild's schedule.
+    :param guild:
+    :param events:
+    :return:
+    """
     talent_name: str = guild.get("talent")
-    content_list = [get_headline(talent_name)]
+    content_list = [get_headline(talent_name), ""]
 
     if guild.get("description"):
-        content_list.append(f"> {guild.get('description')}\n")
+        content_list += [f"> {guild.get('description')}"]
+        content_list += [""] if guild.get("enabled") else ["> ⛔  *Currently disabled.*", ""]
 
-    content_list += [f"> *Last refreshed <t:{int(datetime.now().timestamp())}:R>.*"]
+    content_list += [f"> *Last refreshed <t:{int(datetime.now().timestamp())}:R>.*", ""]
 
     if events:
         past, future, unspecified = separate_events(events)
@@ -47,9 +54,6 @@ def render_schedule(guild: dict, events: [dict]) -> str:
 
         future = future[::-1] + unspecified
 
-        content_list += [""] if guild.get("enabled") or not guild else \
-            ["⛔  *Currently disabled.*", ""]
-
         if future:
             content_list += render_next_up(future[0])
             if len(future) > 1:
@@ -58,10 +62,11 @@ def render_schedule(guild: dict, events: [dict]) -> str:
             else:
                 content_list += [f"{ED}"]
         else:
-            content_list += ["> *Nothing planned in the future. "
-                             "Use **/add**, or **/add-yt** to add some events!*"]
+            content_list += [
+                "> *Nothing planned in the future. "
+                "Use **/add**, or **/add-yt** to add some events!*"]
     else:
-        content_list += ["\n> *No events. Use **/add**, or **/add-yt** to add some events!*"]
+        content_list += ["> *No events. Use **/add**, or **/add-yt** to add some events!*"]
 
     content = "\n".join(content_list)
     return content

@@ -65,7 +65,7 @@ def get_headline(talent: str = ""):
     else:
         headline = "__**A schedule**__:"
     return headline + "\n(Events with Discord Timestamps are in your **local timezone**," \
-                      f" all other times are in **JST**.)\n"
+                      f" all other times are in **JST**.)"
 
 
 def separate_events(event_list: list) -> (list, list, list):
