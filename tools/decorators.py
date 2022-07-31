@@ -121,8 +121,9 @@ def check_title(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
         title: str = kwargs.get("title", "")
-        if len(title) > 30:
-            raise BadInput(f"**Title too long!** Max 30 characters. (Currently {len(title)})")
+        if title:
+            if len(title) > 30:
+                raise BadInput(f"**Title too long!** Max 30 characters. (Currently {len(title)})")
         return await func(*args, **kwargs)
 
     return wrapper
