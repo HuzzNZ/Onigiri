@@ -45,18 +45,9 @@ def check_general(func):
         try:
             await interaction.client.get_channel(current_channel).fetch_message(current_message)
         except (discord.NotFound, discord.Forbidden, AttributeError):
-            # error = "**Command failed.** The schedule channel/message cannot be found! Please run **/setup**."
             raise MessageUnreachable
 
         return await func(*args, **kwargs)
-        #
-        # try:
-        #     await interaction.response.send_message(NO + error, ephemeral=True)
-        # except discord.InteractionResponded:
-        #     try:
-        #         await interaction.edit_original_message(content=NO + error)
-        #     except discord.InteractionResponded:
-        #         await interaction.followup.send(content=NO + error, ephemeral=True)
 
     return wrapper
 
@@ -100,7 +91,7 @@ def check_date_time(func):
         time: str = kwargs.get("time", "")
 
         if time and (not current_datetime and not date):  # Check if a date is/will be set
-            raise BadInput(f"**No date set on event!** Please add a date first.")
+            raise BadInput(f"**No date set on event!** Please add a date before adding a time.")
 
         if date:  # Check date input
             try:

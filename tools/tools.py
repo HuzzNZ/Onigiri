@@ -1,9 +1,11 @@
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 import re
-from .constants import YR
 
-from .constants import DD, ED
+import discord
+from discord import app_commands
+
+from .constants import YR, DD, ED
 from .helpers import \
     get_headline, separate_events, render_past_events, render_next_up, render_future
 
@@ -70,3 +72,15 @@ def render_schedule(guild: dict, events: [dict]) -> str:
 
     content = "\n".join(content_list)
     return content
+
+
+async def type_ac(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
+    """
+    Autocomplete for types.
+    """
+    types = ['stream', 'video', 'event', 'release', 'other']
+    choices = []
+    for i in range(len(types)):
+        if current.lower() in types[i]:
+            choices.append(app_commands.Choice(name=types[i], value=types[i]))
+    return choices

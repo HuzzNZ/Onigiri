@@ -100,12 +100,6 @@ if __name__ == "__main__":
         return interaction.user.guild_permissions.manage_channels
 
 
-
-
-
-    # Maintenance / Utility Commands
-
-
     @tree.command(description="Must be run at least once! "
                               "Sets up the bot, or edits schedule channel for the server.")
     @app_commands.describe(channel="The channel to keep the schedule message in.")
@@ -246,8 +240,10 @@ if __name__ == "__main__":
     @app_commands.check(manage_channels)
     async def server_info(interaction: discord.Interaction):
         guild = interaction.client.db.get_guild(interaction.guild.id)
-        editor_role_mention = f"<@&{guild.get('editor_role_id')}>" if guild.get('editor_role_id') else "`None`"
-        msg = f"__**{interaction.guild.name}'s {interaction.client.user.mention} Configuration**__\n\n" \
+        editor_role_mention = f"<@&{guild.get('editor_role_id')}>" if guild.get('editor_role_id') \
+            else "`None`"
+        msg = f"__**{interaction.guild.name}'s {interaction.client.user.mention} " \
+              f"Configuration**__\n\n" \
               f"> **Enabled**: {YES if guild.get('enabled') else NO}\n> \n" \
               f"> **Editor Role**: {editor_role_mention}\n> \n" \
               f"> **Talent Name**: {guild.get('talent', '`None`')}\n> \n" \
@@ -326,18 +322,6 @@ if __name__ == "__main__":
             ephemeral=True)
 
 
-    # Autocomplete for event types
-
-
-    async def type_ac(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
-        types = ['stream', 'video', 'event', 'release', 'other']
-        choices = []
-        for i in range(len(types)):
-            if current.lower() in types[i]:
-                choices.append(app_commands.Choice(name=types[i], value=types[i]))
-        return choices
-
-
     # Event Creation Commands
 
 
@@ -346,7 +330,8 @@ if __name__ == "__main__":
         title="The title of the event. Max 30 characters. Try to keep it short and concise!",
         event_type="The type of the event. Defaults to stream.",
         url="The URL/Link of an event. YouTube stream/premiere URLs can be picked up.",
-        date="The date of the event in JST. (e.g. Jul 12, 22/7/12, 7/12, 12 Jul 2022, today, tomorrow, etc.)",
+        date="The date of the event in JST. (e.g. Jul 12, 22/7/12, 7/12, 12 Jul 2022, today, "
+             "tomorrow, etc.)",
         time="The time of the event in JST. (e.g. 8:00 pm, 20:00, 20, 3am, 27:00, now, etc.)")
     @app_commands.guild_only()
     @app_commands.autocomplete(event_type=type_ac)
@@ -357,7 +342,8 @@ if __name__ == "__main__":
     @check_url
     @app_commands.check(manage_messages)
     async def add(interaction: discord.Interaction,
-                  title: str, url: str = "", date: str = "", time: str = "", event_type: str = 'stream'):
+                  title: str, url: str = "", date: str = "", time: str = "",
+                  event_type: str = 'stream'):
         dt = None
         if date:
             dt = parse_date(date)
@@ -366,16 +352,18 @@ if __name__ == "__main__":
         t = parse_type(event_type)
         event_id = interaction.client.db.add_event(interaction.guild_id, title, t, url, dt)
         try:
-            await interaction.response.send_message(f"{YES}**Event `{event_id}` added!**", ephemeral=True)
+            await interaction.response.send_message(f"{YES}**Event `{event_id}` added!**",
+                                                    ephemeral=True)
         except discord.InteractionResponded:
-            await interaction.edit_original_message(content = f"{YES}**Event `{event_id}` added!**")
+            await interaction.edit_original_message(content=f"{YES}**Event `{event_id}` added!**")
         await interaction.client.update_schedule(interaction.guild.id)
 
 
     @tree.command(name="add-yt", description="Adds an event to the schedule using a YouTube URL.")
     @app_commands.describe(
         url="The YouTube URL linking to a video, premiere, or stream.",
-        title="The title of the event. Max 30 characters. Defaults to the title of the YouTube video/stream.")
+        title="The title of the event. Max 30 characters. Defaults to the title of the YouTube "
+              "video/stream.")
     @app_commands.guild_only()
     @check_general
     @check_title
@@ -383,7 +371,8 @@ if __name__ == "__main__":
     @app_commands.check(manage_messages)
     async def add_yt(interaction: discord.Interaction, url: str, title: str = None):
         try:
-            await interaction.response.send_message(f"{NO}**No valid YouTube link found.**", ephemeral=True)
+            await interaction.response.send_message(f"{NO}**No valid YouTube link found.**",
+                                                    ephemeral=True)
         except discord.InteractionResponded:
             await interaction.edit_original_message(content=f"{NO}**Cancelled.**")
         await interaction.client.update_schedule(interaction.guild.id)
@@ -400,17 +389,24 @@ if __name__ == "__main__":
         confirm = ConfirmView()
         await interaction.response.send_message(
             f"{WARNING}  **Are you sure you want to delete event `{event_id}`?**\n"
-            f"> If the event was cancelled, consider using **/stash `{event_id}`**.", view=confirm, ephemeral=True)
+            f"> If the event was cancelled, consider using **/stash `{event_id}`**.",
+            view=confirm, ephemeral=True)
         timeout = await confirm.wait()
         if not timeout:
             if confirm.value:
                 interaction.client.db.delete_event(interaction.guild.id, event_id)
-                await interaction.edit_original_message(content=f"{YES}**Event `{event_id}` deleted.**", view=None)
+                await interaction.edit_original_message(
+                    content=f"{YES}**Event `{event_id}` deleted.**", view=None
+                )
                 await interaction.client.update_schedule(interaction.guild.id)
             else:
-                await interaction.edit_original_message(content=f"{CANCELLED}  **Cancelled.**", view=None)
+                await interaction.edit_original_message(
+                    content=f"{CANCELLED}  **Cancelled.**", view=None
+                )
         else:
-            await interaction.edit_original_message(content=f"{CANCELLED}  **Confirmation timed out.**", view=None)
+            await interaction.edit_original_message(
+                content=f"{CANCELLED}  **Confirmation timed out.**", view=None
+            )
 
 
     @tree.command(description="Edits an event. Only edits the fields supplied.")
@@ -419,7 +415,8 @@ if __name__ == "__main__":
         title="The title of the event. Max 30 characters. Try to keep it short and concise!",
         event_type="The type of the event. Defaults to stream.",
         url="The URL/Link of an event. YouTube stream/premiere URLs can be picked up.",
-        date="The date of the event in JST. (e.g. Jul 12, 22/7/12, 7/12, 12 Jul 2022, today, tomorrow, etc.)",
+        date="The date of the event in JST. (e.g. Jul 12, 22/7/12, 7/12, 12 Jul 2022, today, "
+             "tomorrow, etc.)",
         time="The time of the event in JST. (e.g. 8:00 pm, 20:00, 20, 3am, 27:00, etc.)",
         note="The note to the event. Max 30 characters.")
     @app_commands.rename(event_id="id")
@@ -439,46 +436,29 @@ if __name__ == "__main__":
             if time:
                 dt = parse_time(time, dt)
             interaction.client.db.edit_event_datetime(interaction.guild.id, event_id, dt)
-        elif time:
-            date_dt = interaction.client.db.get_event(interaction.guild.id, event_id).get("datetime")
-            if not date_dt:
-                try:
-                    await interaction.response.send_message(
-                        f"{NO}**No date set on event!** Please add a date, or use **/date `{event_id}`** first.",
-                        ephemeral=True)
-                except discord.InteractionResponded:
-                    await interaction.edit_original_message(
-                        content=f"{NO}**No date set on event!** Please add a date, use **/date `{event_id}`** first.")
-                return
-            else:
-                dt = parse_time(time, date_dt)
-                interaction.client.db.edit_event_datetime(interaction.guild.id, event_id, dt)
+        elif time and not (date and time):
+            date_dt = interaction.client.db.get_event(interaction.guild.id, event_id).get(
+                "datetime"
+            )
+            dt = parse_time(time, date_dt)
+            interaction.client.db.edit_event_datetime(interaction.guild.id, event_id, dt)
         if title:
             interaction.client.db.edit_event_title(interaction.guild.id, event_id, title)
         if url:
             interaction.client.db.edit_event_url(interaction.guild.id, event_id, url)
         if event_type:
-            interaction.client.db.edit_event_type(interaction.guild.id, event_id, parse_type(event_type))
+            interaction.client.db.edit_event_type(interaction.guild.id, event_id,
+                                                  parse_type(event_type))
         if note:
             if len(note) > 30:
-                try:
-                    await interaction.response.send_message(f"{NO}**Note too long.** Max 30 characters. "
-                                                            f"(Currently {len(note)})\n"
-                                                            f"> **Tip:** *You can click on the **`... used /edit`** "
-                                                            f"on top of this message to retrieve your last command!*",
-                                                            ephemeral=True)
-                except discord.InteractionResponded:
-                    await interaction.edit_original_message(
-                        content=f"{NO}**Note too long.** Max 30 characters. "
-                                f"(Currently {len(note)})\n"
-                                f"> **Tip:** *You can click on the **`... used /edit`** "
-                                f"on top of this message to retrieve your last command!*")
-                return
+                raise BadInput(
+                    f"**Note too long.** Max 30 characters. (Currently {len(note)})\n"
+                    f"> **Tip:** *You can click on the **`... used /edit`** "
+                    f"on top of this message to retrieve your last command!*")
             interaction.client.db.edit_event_note(interaction.guild.id, event_id, note)
-        try:
-            await interaction.response.send_message(f"{YES}**Event `{event_id}` updated.**", ephemeral=True)
-        except discord.InteractionResponded:
-            await interaction.edit_original_message(content=f"{YES}**Event `{event_id}` updated.**")
+
+        await interaction.response.send_message(f"{YES}**Event `{event_id}` updated.**",
+                                                ephemeral=True)
         await interaction.client.update_schedule(interaction.guild.id)
 
 
@@ -493,15 +473,16 @@ if __name__ == "__main__":
     @app_commands.check(manage_messages)
     async def edit_title(interaction: discord.Interaction, event_id: str, title: str):
         interaction.client.db.edit_event_title(interaction.guild.id, event_id, title)
-        await interaction.response.send_message(f"{YES}**Title of event `{event_id}` updated.**", ephemeral=True)
+        await interaction.response.send_message(f"{YES}**Title of event `{event_id}` updated.**",
+                                                ephemeral=True)
         await interaction.client.update_schedule(interaction.guild.id)
 
 
-    @tree.command(name="url", description="Edits the URL of an event. Enter nothing to reset the URL. "
-                                          "Recognizes YouTube streams and premieres.")
+    @tree.command(name="url", description="Edits the URL of an event. Enter nothing to reset the "
+                                          "URL. Recognizes YouTube streams and premieres.")
     @app_commands.describe(event_id=EVENT_ID_DESC)
-    @app_commands.describe(url="The URL/Link of an event. YouTube stream/premiere URLs can be picked up. "
-                               "Enter nothing to clear the URL.")
+    @app_commands.describe(url="The URL/Link of an event. YouTube stream/premiere URLs can be "
+                               "picked up. Enter nothing to clear the URL.")
     @app_commands.guild_only()
     @app_commands.rename(event_id="id")
     @check_general
@@ -515,10 +496,13 @@ if __name__ == "__main__":
             interaction.client.db.edit_event_confirmed(interaction.guild.id, event_id, False)
         try:
             await interaction.response.send_message(
-                f"{YES}**URL of event `{event_id}` {'updated' if not reset else 'reset'}.**", ephemeral=True)
+                f"{YES}**URL of event `{event_id}` {'updated' if not reset else 'reset'}.**",
+                ephemeral=True
+            )
         except discord.InteractionResponded:
             await interaction.edit_original_message(
-                content=f"{YES}**URL of event `{event_id}` {'updated' if not reset else 'reset'}.**")
+                content=f"{YES}**URL of event `{event_id}` {'updated' if not reset else 'reset'}.**"
+            )
 
         await interaction.client.update_schedule(interaction.guild.id)
 
@@ -544,15 +528,16 @@ if __name__ == "__main__":
             reset = True
         interaction.client.db.edit_event_datetime(interaction.guild.id, event_id, dt)
         await interaction.response.send_message(
-            f"{YES}**Date of event `{event_id}` {'updated' if not reset else 'reset'}.**", ephemeral=True)
+            f"{YES}**Date of event `{event_id}` {'updated' if not reset else 'reset'}.**",
+            ephemeral=True)
         await interaction.client.update_schedule(interaction.guild.id)
 
 
     @tree.command(name="time", description="Edits the time of an event. "
                                            "The event must already have a date.")
     @app_commands.describe(event_id=EVENT_ID_DESC)
-    @app_commands.describe(time="The time of the event in JST. (e.g. 8:00 pm, 20:00, 20, 3am, 27:00, now, etc.), "
-                                "Enter nothing to clear the time.")
+    @app_commands.describe(time="The time of the event in JST. (e.g. 8:00 pm, 20:00, 20, 3am, "
+                                "27:00, now, etc.), Enter nothing to clear the time.")
     @app_commands.rename(event_id="id")
     @app_commands.guild_only()
     @check_general
@@ -562,10 +547,6 @@ if __name__ == "__main__":
     async def edit_time(interaction: discord.Interaction, event_id: str, time: str = ""):
         reset = False
         date_dt = interaction.client.db.get_event(interaction.guild.id, event_id).get("datetime")
-        if not date_dt:
-            await interaction.response.send_message(
-                f"{NO}**No date set on event!** Please use **/date `{event_id}`** first.", ephemeral=True)
-            return
         if time:
             dt = parse_time(time, date_dt)
         else:
@@ -573,7 +554,8 @@ if __name__ == "__main__":
             reset = True
         interaction.client.db.edit_event_datetime(interaction.guild.id, event_id, dt)
         await interaction.response.send_message(
-            f"{YES}**Time of event `{event_id}` {'updated' if not reset else 'reset'}.**", ephemeral=True)
+            f"{YES}**Time of event `{event_id}` {'updated' if not reset else 'reset'}.**",
+            ephemeral=True)
         await interaction.client.update_schedule(interaction.guild.id)
 
 
@@ -595,7 +577,8 @@ if __name__ == "__main__":
         t = parse_type(event_type)
         interaction.client.db.edit_event_type(interaction.guild.id, event_id, t)
         await interaction.response.send_message(
-            f"{YES}**Type of event `{event_id}` {'updated' if not reset else 'reset'}.**", ephemeral=True)
+            f"{YES}**Type of event `{event_id}` {'updated' if not reset else 'reset'}.**",
+            ephemeral=True)
         await interaction.client.update_schedule(interaction.guild.id)
 
 
@@ -612,10 +595,12 @@ if __name__ == "__main__":
         is_stashed = event.get("stashed", False)
         if not is_stashed:
             interaction.client.db.edit_event_stashed(interaction.guild.id, event_id, True)
-            await interaction.response.send_message(f"{YES}**Event `{event_id}` stashed.**", ephemeral=True)
+            await interaction.response.send_message(
+                f"{YES}**Event `{event_id}` stashed.**", ephemeral=True)
             await interaction.client.update_schedule(interaction.guild.id)
         else:
-            await interaction.response.send_message(f"{NO}**Event `{event_id}` is already stashed!**", ephemeral=True)
+            await interaction.response.send_message(
+                f"{NO}**Event `{event_id}` is already stashed!**", ephemeral=True)
 
 
     @tree.command(description="Unstashes an event.")
@@ -629,15 +614,18 @@ if __name__ == "__main__":
         is_stashed = event.get("stashed", False)
         if is_stashed:
             interaction.client.db.edit_event_stashed(interaction.guild.id, event_id, False)
-            await interaction.response.send_message(f"{YES}**Event `{event_id}` unstashed.**", ephemeral=True)
+            await interaction.response.send_message(
+                f"{YES}**Event `{event_id}` unstashed.**", ephemeral=True)
             await interaction.client.update_schedule(interaction.guild.id)
         else:
-            await interaction.response.send_message(f"{NO}**Event `{event_id}` is not stashed!**", ephemeral=True)
+            await interaction.response.send_message(
+                f"{NO}**Event `{event_id}` is not stashed!**", ephemeral=True)
 
 
     @tree.command(name="note", description="Edits the note to an event.")
     @app_commands.describe(event_id=EVENT_ID_DESC)
-    @app_commands.describe(note="The note to the event. Max 30 characters. Enter nothing to delete the note.")
+    @app_commands.describe(note="The note to the event. "
+                                "Max 30 characters. Enter nothing to delete the note.")
     @app_commands.guild_only()
     @app_commands.rename(event_id="id")
     @check_general
@@ -645,15 +633,16 @@ if __name__ == "__main__":
     @app_commands.check(manage_messages)
     async def edit_note(interaction: discord.Interaction, event_id: str, note: str = ""):
         if len(note) > 30:
-            await interaction.response.send_message(f"{NO}**Note too long.** Max 30 characters. "
-                                                    f"(Currently {len(note)})\n"
-                                                    f"> **Tip:** *You can click on the **`... used /note`** "
-                                                    f"on top of this message to retrieve your last command!*",
-                                                    ephemeral=True)
-            return
+            raise BadInput(
+                f"**Note too long.** Max 30 characters. (Currently {len(note)})\n"
+                f"> **Tip:** *You can click on the **`... used /note`** "
+                f"on top of this message to retrieve your last command!*",)
+
         interaction.client.db.edit_event_note(interaction.guild.id, event_id, note)
-        await interaction.response.send_message(f"{YES}**Note to event `{event_id}` updated.**" if note else
-                                                f"{YES}**Note to event `{event_id}` deleted.**", ephemeral=True)
+        await interaction.response.send_message(
+            f"{YES}**Note to event `{event_id}` updated.**" if note else
+            f"{YES}**Note to event `{event_id}` deleted.**", ephemeral=True)
+
         await interaction.client.update_schedule(interaction.guild.id)
 
 
@@ -664,10 +653,27 @@ if __name__ == "__main__":
     async def error_handler(
             interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
         if isinstance(error, GuildNotRegistered):
-            await interaction.response.send_message(
-                f"{NO}**This server has not yet been set up!** Please run **/setup** first.", ephemeral=True)
+            msg = "**This server has not yet been set up!** Run **/setup** first."
+        elif isinstance(error, GuildNotEnabled):
+            msg = "**I'm currently disabled.** Run **/enable** to enable me."
+        elif isinstance(error, MessageUnreachable):
+            msg = "**The schedule channel/message cannot be found.** Please check that the bot " \
+                  "has permissions to **read**, and **send messages** in the correct channel. If " \
+                  "the issue persists, try running **/setup** again."
+        elif isinstance(error, BadInput):
+            msg = error.message
         elif isinstance(error, discord.app_commands.CheckFailure):
-            await interaction.response.send_message(f"{NO}**Missing permissions.**", ephemeral=True)
+            msg = "**Missing permissions.**"
+        else:
+            raise error
+
+        try:
+            await interaction.response.send_message(NO + msg, ephemeral=True)
+        except discord.InteractionResponded:
+            try:
+                await interaction.edit_original_message(content=NO + msg)
+            except discord.InteractionResponded:
+                await interaction.followup.send(content=NO + msg, ephemeral=True)
 
 
     @bot.command()
