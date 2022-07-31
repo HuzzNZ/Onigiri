@@ -1,104 +1,23 @@
 import os
-from typing import List, Optional, Literal
+from typing import Optional, Literal
 
 from dotenv import load_dotenv
 
 import discord
 from discord import app_commands
-from discord.ext import commands, tasks
+from discord.ext import commands
 from discord.ext.commands import Context, Greedy
-
-from apis.database_api import OnigiriDB
 
 from tools import *
 from tools.constants import *
+from onigiri import Onigiri
 
 load_dotenv()
-
-
-class Onigiri(commands.Bot):
-    def __init__(self):
-        intents = discord.Intents.default()
-        self.db = OnigiriDB()
-        super().__init__(command_prefix=commands.when_mentioned_or("$"), intents=intents)
-
-    async def setup_hook(self):
-        print(f'{log_time()}Logged in as {self.user} (ID: {self.user.id})')
-        print(f'{log_time()}Starting refresh loop!')
-        self.loop_refresh.start()
-    
-    async def new_schedule(self, guild_id: int, channel_id: int):
-        guild = self.get_guild(guild_id)
-        print(f"{log_time()}Creating new schedule for guild {guild.name} ({guild.id}).")
-        channel = self.get_channel(channel_id)
-        message = await channel.send(content=".")
-        return message
-
-    async def update_schedule(self, guild_id: int) -> Optional[discord.Message]:
-        print(f"{log_time()}Updating schedule for guild {guild_id}.")
-
-        guild = self.get_guild(guild_id)
-        if not guild:
-            print(f"{log_time()}    ↳ {guild_id}: This instance is not in the guild.")
-            print(f"{log_time()}")
-            return
-        print(f"{log_time()}    ↳ {guild_id}: {guild.name}")
-
-        guild = self.db.get_guild(guild_id)
-        events = self.db.get_guild_events(guild_id)
-        channel = self.get_channel(guild.get("schedule_channel_id"))
-        if not channel:
-            raise discord.NotFound
-
-        message = await channel.fetch_message(guild.get("schedule_message_id"))
-        content = render_schedule(guild, events)
-        print(f"{log_time()}    ↳ {guild_id}: Message length currently {len(content)}")
-        print(f"{log_time()}")
-        return await message.edit(content=content)
-
-    @tasks.loop(minutes=5)
-    async def loop_refresh(self):
-        for guild in self.db.get_all_enabled_guilds():
-            try:
-                await self.update_schedule(guild.get("guild_id"))
-            except discord.Forbidden:
-                print(f"{log_time()}    "
-                      f"↳ {guild.get('guild_id')}: Missing permissions to update message.")
-                print(f"{log_time()}")
-            except discord.NotFound:
-                print(f"{log_time()}    "
-                      f"↳ {guild.get('guild_id')}: Schedule message or channel not found.")
-                print(f"{log_time()}")
-
-    @loop_refresh.before_loop
-    async def before_loop(self):
-        await self.wait_until_ready()
 
 
 if __name__ == "__main__":
     bot = Onigiri()
     tree = bot.tree
-
-
-    async def manage_messages(interaction: discord.Interaction) -> bool:
-        guild = interaction.client.db.check_guild_exists(interaction.guild.id)
-        if not guild:
-            raise GuildNotRegistered
-        try:
-            guild_channel = interaction.client.get_channel(guild.get("schedule_channel_id"))
-            perms = guild_channel.permissions_for(interaction.user).manage_messages
-            if not perms:
-                if guild.get("editor_role_id"):
-                    editor_role = interaction.guild.get_role(guild.get("editor_role_id"))
-                    perms = editor_role in interaction.user.roles
-            return perms
-        except discord.NotFound:
-            return False
-
-
-    async def manage_channels(interaction: discord.Interaction) -> bool:
-        return interaction.user.guild_permissions.manage_channels
-
 
     @tree.command(description="Must be run at least once! "
                               "Sets up the bot, or edits schedule channel for the server.")
@@ -138,7 +57,6 @@ if __name__ == "__main__":
             await interaction.followup.send(
                 f"{NO}**The schedule message channel is already <#{schedule_channel_id}>**.")
 
-
     @tree.command(description="Disables the bot on this server. (Does not remove event data!)")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
@@ -152,10 +70,8 @@ if __name__ == "__main__":
                 f"{NO}**Bot is already disabled.**", ephemeral=True
             )
         else:
-            error = "**This server has not yet been set up!** Please run **/setup** first."
-            await interaction.response.send_message(NO + error, ephemeral=True)
+            raise GuildNotRegistered
         await interaction.client.update_schedule(interaction.guild.id)
-
 
     @tree.command(description="Enables the bot on this server.")
     @app_commands.guild_only()
@@ -166,16 +82,15 @@ if __name__ == "__main__":
         if guild:
             result = interaction.client.db.enable_guild(interaction.guild.id)
             await interaction.response.send_message(
-                f"{YES}**Bot enabled!** You can use **/disable** to disable me again." if result else
-                f"{NO}**Bot is already enabled.**", ephemeral=True
+                f"{YES}**Bot enabled!** You can use **/disable** to disable me again." if result
+                else f"{NO}**Bot is already enabled.**", ephemeral=True
             )
         else:
-            error = "**This server has not yet been set up!** Please run **/setup** first."
-            await interaction.response.send_message(NO + error, ephemeral=True)
+            raise GuildNotRegistered
         await interaction.client.update_schedule(interaction.guild.id)
 
-
-    @tree.command(name="set-editor", description="Sets a role that can access commands to edit the schedule.")
+    @tree.command(name="set-editor", description="Sets a role that can access commands to edit the "
+                                                 "schedule.")
     @app_commands.describe(editor="The role to set as an editor.")
     @app_commands.rename(editor="role")
     @app_commands.guild_only()
@@ -190,48 +105,42 @@ if __name__ == "__main__":
             f"{YES}The schedule editor role has been **reset**.", ephemeral=True)
 
 
-    @tree.command(name="set-description", description="Sets a description that appears on top of the schedule.")
-    @app_commands.describe(description="The description to set. "
-                                       "Formatting will not work, but emojis will. (Max 200 characters)")
+    @tree.command(name="set-description", description="Sets a description for the schedule.")
+    @app_commands.describe(description="The description to set. Formatting will not work, but "
+                                       "emojis will. (Max 200 characters)")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
     @check_general
     @app_commands.check(manage_channels)
     async def set_description(interaction: discord.Interaction, description: str = ""):
         if len(description) > 200:
-            await interaction.response.send_message(f"{NO}**Description too long.** Max 200 characters. "
-                                                    f"(Currently {len(description)})\n"
-                                                    f"> **Tip:** *You can click on the **`... used /set-description`** "
-                                                    f"on top of this message to retrieve your last command!*",
-                                                    ephemeral=True)
-            return
+            raise BadInput(
+                f"**Description too long.** Max 200 characters. (Currently {len(description)})\n"
+                "> **Tip:** *You can click on the **`... used /set-description`** "
+                "on top of this message to retrieve your last command!*")
         interaction.client.db.edit_guild_description(interaction.guild.id, description)
         await interaction.response.send_message(
             f"{YES}**The description has been set.**" if description else
             f"{YES}**The description has been reset.**", ephemeral=True)
         await interaction.client.update_schedule(interaction.guild.id)
 
-
     @tree.command(name="set-talent", description="Sets the name of the talent the schedule is for.")
-    @app_commands.describe(name="The name of talent that the schedule is for. (Max 40 characters)")
+    @app_commands.describe(name="The name of talent that the schedule is for. (Max 30 characters)")
     @app_commands.guild_only()
     @app_commands.default_permissions(manage_channels=True)
     @check_general
     @app_commands.check(manage_channels)
     async def set_talent(interaction: discord.Interaction, name: str = ""):
-        if len(name) > 40:
-            await interaction.response.send_message(f"{NO}**Talent name too long.** Max 40 characters. "
-                                                    f"(Currently {len(name)})\n"
-                                                    f"> **Tip:** *You can click on the **`... used /set-talent`** "
-                                                    f"on top of this message to retrieve your last command!*",
-                                                    ephemeral=True)
-            return
+        if len(name) > 30:
+            raise BadInput(
+                f"**Talent name too long.** Max 30 characters. (Currently {len(name)})\n"
+                "> **Tip:** *You can click on the **`... used /set-talent`** "
+                "on top of this message to retrieve your last command!*")
         interaction.client.db.edit_guild_talent(interaction.guild.id, name)
         await interaction.response.send_message(
             f"{YES}The talent has been set to **{name}**." if name else
             f"{YES}The talent has been **reset**.", ephemeral=True)
         await interaction.client.update_schedule(interaction.guild.id)
-
 
     @tree.command(name="server-info", description="This server's configuration at a glance.")
     @app_commands.guild_only()
@@ -251,7 +160,6 @@ if __name__ == "__main__":
               f"> **Schedule Channel**: <#{guild.get('schedule_channel_id')}>\n" \
               f"> **Schedule Message ID**: `{guild.get('schedule_message_id')}`"
         await interaction.response.send_message(content=msg, ephemeral=True)
-
 
     @app_commands.default_permissions(manage_channels=True)
     class Reset(app_commands.Group):
@@ -290,14 +198,13 @@ if __name__ == "__main__":
         async def config(self, interaction: discord.Interaction):
             await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
 
-        @app_commands.command(description="Resets all events, and all configuration in this server.")
+        @app_commands.command(description="Resets all events, and configurations in this server.")
         @app_commands.guild_only()
         @app_commands.default_permissions(manage_channels=True)
         @check_general
         @app_commands.check(manage_channels)
         async def all(self, interaction: discord.Interaction):
             await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
-
 
     @tree.command(description="Manually refreshes the schedule message.")
     @app_commands.guild_only()
@@ -308,7 +215,6 @@ if __name__ == "__main__":
         await interaction.client.update_schedule(interaction.guild.id)
         await interaction.followup.send(content=f"{YES}**Schedule refreshed.**", ephemeral=True)
 
-
     @tree.command(description="Pong!")
     async def ping(interaction: discord.Interaction):
         await interaction.response.send_message(f"{interaction.user.mention} Pong!", ephemeral=True)
@@ -316,14 +222,10 @@ if __name__ == "__main__":
     @tree.command(name="help", description="Links to the documentation page for the bot.")
     async def help_command(interaction: discord.Interaction):
         await interaction.response.send_message(
-            f"**Check out the documentations here:**\n> "
-            f"<https://huzz.notion.site/Onigiri-Bot-Documen"
-            f"tation-85760679057645aca767b94c867f3fd7>",
-            ephemeral=True)
-
-
-    # Event Creation Commands
-
+            "**Check out the documentations here:**\n> "
+            "<https://huzz.notion.site/Onigiri-Bot-Documentation-85760679057645aca767b94c867f3fd7>",
+            ephemeral=True
+        )
 
     @tree.command(description="Adds an event to the schedule.")
     @app_commands.describe(
@@ -358,7 +260,6 @@ if __name__ == "__main__":
             await interaction.edit_original_message(content=f"{YES}**Event `{event_id}` added!**")
         await interaction.client.update_schedule(interaction.guild.id)
 
-
     @tree.command(name="add-yt", description="Adds an event to the schedule using a YouTube URL.")
     @app_commands.describe(
         url="The YouTube URL linking to a video, premiere, or stream.",
@@ -376,7 +277,6 @@ if __name__ == "__main__":
         except discord.InteractionResponded:
             await interaction.edit_original_message(content=f"{NO}**Cancelled.**")
         await interaction.client.update_schedule(interaction.guild.id)
-
 
     @tree.command(description="Deletes an event from the schedule.")
     @app_commands.describe(event_id=EVENT_ID_DESC)
@@ -407,7 +307,6 @@ if __name__ == "__main__":
             await interaction.edit_original_message(
                 content=f"{CANCELLED}  **Confirmation timed out.**", view=None
             )
-
 
     @tree.command(description="Edits an event. Only edits the fields supplied.")
     @app_commands.describe(event_id=EVENT_ID_DESC)
@@ -477,7 +376,6 @@ if __name__ == "__main__":
                                                 ephemeral=True)
         await interaction.client.update_schedule(interaction.guild.id)
 
-
     @tree.command(name="url", description="Edits the URL of an event. Enter nothing to reset the "
                                           "URL. Recognizes YouTube streams and premieres.")
     @app_commands.describe(event_id=EVENT_ID_DESC)
@@ -506,7 +404,6 @@ if __name__ == "__main__":
 
         await interaction.client.update_schedule(interaction.guild.id)
 
-
     @tree.command(name="date", description="Edits the date of an event. "
                                            "Editing the date will reset the time.")
     @app_commands.describe(event_id=EVENT_ID_DESC)
@@ -531,7 +428,6 @@ if __name__ == "__main__":
             f"{YES}**Date of event `{event_id}` {'updated' if not reset else 'reset'}.**",
             ephemeral=True)
         await interaction.client.update_schedule(interaction.guild.id)
-
 
     @tree.command(name="time", description="Edits the time of an event. "
                                            "The event must already have a date.")
@@ -558,7 +454,6 @@ if __name__ == "__main__":
             ephemeral=True)
         await interaction.client.update_schedule(interaction.guild.id)
 
-
     @tree.command(name="type", description="Edits the type of an event.")
     @app_commands.describe(event_id=EVENT_ID_DESC)
     @app_commands.describe(event_type="The type of the event. Enter nothing to set to stream.")
@@ -581,7 +476,6 @@ if __name__ == "__main__":
             ephemeral=True)
         await interaction.client.update_schedule(interaction.guild.id)
 
-
     @tree.command(description="Stashes an event. An event will appear crossed out when stashed, "
                               "but it will not be deleted.")
     @app_commands.describe(event_id=EVENT_ID_DESC)
@@ -602,7 +496,6 @@ if __name__ == "__main__":
             await interaction.response.send_message(
                 f"{NO}**Event `{event_id}` is already stashed!**", ephemeral=True)
 
-
     @tree.command(description="Unstashes an event.")
     @app_commands.describe(event_id=EVENT_ID_DESC)
     @app_commands.guild_only()
@@ -620,7 +513,6 @@ if __name__ == "__main__":
         else:
             await interaction.response.send_message(
                 f"{NO}**Event `{event_id}` is not stashed!**", ephemeral=True)
-
 
     @tree.command(name="note", description="Edits the note to an event.")
     @app_commands.describe(event_id=EVENT_ID_DESC)
@@ -645,9 +537,7 @@ if __name__ == "__main__":
 
         await interaction.client.update_schedule(interaction.guild.id)
 
-
     tree.add_command(Reset())
-
 
     @tree.error
     async def error_handler(
@@ -674,7 +564,6 @@ if __name__ == "__main__":
                 await interaction.edit_original_message(content=NO + msg)
             except discord.InteractionResponded:
                 await interaction.followup.send(content=NO + msg, ephemeral=True)
-
 
     @bot.command()
     @commands.guild_only()
