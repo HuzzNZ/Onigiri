@@ -18,6 +18,9 @@ EVENT_ID_DESC = "The 4-digit numeric ID associated with each event. (e.g. 1902, 
 EVENT_TYPES = ['stream', 'video', 'event', 'release', 'other']
 YR = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=" \
      r"|embed\/|v\/)?)([\w\-]+)(\S+)?$"
+DEFAULT_DT_G = {
+    'year': True, 'month': True, 'day': True
+}
 
 LOG_HANDLER = logging.StreamHandler()
 fmt = logging.Formatter(

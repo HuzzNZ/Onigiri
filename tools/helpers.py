@@ -38,16 +38,27 @@ def format_event_time(event: dict, relative: bool = False) -> str:
             return f"<t:{int(dt.timestamp())}:{'R' if relative else 'f'}>"
         else:
             now = datetime.now(JST)
-            if dt.year == now.year and dt.month == now.month and dt.day == now.day:
-                base_str = "Today"
-                time_format = ""
-            else:
-                base_str = ""
-                time_format = "%b %-d"
-            if dt.year != now.year and not (now.month == 12 and dt.year - 1 == now.year):
-                time_format += ", %Y"
-            if not is_generic_date(dt):
-                time_format += f"{',' if base_str else ' '} %H:%M"
+            dt_g = event.get("datetime_granularity", DEFAULT_DT_G)
+            base_str, time_format = "", ""
+            if dt_g.get("day"):
+                if dt.year == now.year and dt.month == now.month and dt.day == now.day:
+                    base_str = "Today"
+                    time_format += ""
+                else:
+                    base_str = ""
+                    time_format += "%b %-d"
+                if dt.year != now.year and not (now.month == 12 and dt.year - 1 == now.year):
+                    time_format += ", %Y"
+                if not is_generic_date(dt):
+                    time_format += f"{',' if base_str else ' '} %H:%M"
+            elif dt_g.get("month"):
+                base_str += "◔  "
+                time_format = "%B"
+                if dt.year != now.year and not (now.month == 12 and dt.year - 1 == now.year):
+                    time_format += " %Y"
+            elif dt_g.get("year"):
+                base_str += "◕  "
+                time_format += "%Y"
             return base_str + dt.strftime(time_format)
     else:
         return "Unknown"
@@ -93,14 +104,19 @@ def separate_events(event_list: list) -> (list, list, list):
     return past_list, future_list, unspecified_list
 
 
-def is_on_same_day(dt1: datetime, dt2: datetime) -> bool:
+def is_on_same_day(e1: dict, e2: dict) -> bool:
     """
-    Checks if two events occur on the same day.
+    Checks if two events occur on the same day. Will return false if the granularity of each event
+    do not match up.
     """
-    # TODO: Add support for more granular events to be compared
+    dt1, dt2 = e1.get("datetime"), e2.get("datetime")
+    dt_g1 = e1.get("datetime_granularity", DEFAULT_DT_G)
+    dt_g2 = e2.get("datetime_granularity", DEFAULT_DT_G)
     if not dt1 and not dt2:
         return True
     if not dt1 or not dt2:
+        return False
+    if dt_g1 != dt_g2:
         return False
     return dt1.year == dt2.year and dt1.month == dt2.month and dt1.day == dt2.day
 
@@ -192,7 +208,6 @@ def render_future(future_list: [dict]) -> [str]:
     contents = [f"☁️  __**Upcoming**__"]
     previous_event = {}
     for event in future_list:
-        dt = event.get('datetime')
         uses_timestamp = will_use_timestamp(event)
         nl_prefix = f"{DD}{' ' * 7}"
         s = "~~" if event.get("stashed") else ""
@@ -200,7 +215,7 @@ def render_future(future_list: [dict]) -> [str]:
         emoji = (EMOJIPEDIA[event.get('type')].get(
             'confirmed' if event.get('confirmed') else 'unconfirmed')) if not s else STASHED
 
-        if not is_on_same_day(previous_event.get('datetime'), dt) or previous_event.get("note"):
+        if not is_on_same_day(previous_event, event) or previous_event.get("note"):
             contents.append(f"{DD}")
 
         contents.append(

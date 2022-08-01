@@ -9,6 +9,8 @@ import pytz
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
+from tools.constants import DEFAULT_DT_G
+
 load_dotenv()
 
 
@@ -96,7 +98,8 @@ class OnigiriDB:
 
     def get_guild_events(self, guild_id):
         return [make_datetime_jst(k) for k in self.events.find(
-            {"guild_id": guild_id}, sort=[("datetime", pymongo.DESCENDING)])]
+            {"guild_id": guild_id}, sort=[("datetime", pymongo.DESCENDING),
+                                          ('datetime_granularity', pymongo.ASCENDING)])]
 
     def delete_guild(self, guild_id):
         self.guilds.delete_one({"guild_id": guild_id})
@@ -105,9 +108,13 @@ class OnigiriDB:
         duplicate = [x for x in self.events.find({"$and": [{"guild_id": guild_id}, {"event_id": event_id}]})]
         return False if not duplicate else True
 
-    def add_event(self, guild_id, title, event_type=0, url="", dt: Union[None, datetime.datetime] = None, conf=False):
+    def add_event(self, guild_id, title, event_type=0, url="",
+                  dt: Union[None, datetime.datetime] = None, dt_g: dict = None, conf=False):
         def get_event_id():
             return ''.join(random.choices(string.digits, k=4))
+
+        if not dt_g:
+            dt_g = DEFAULT_DT_G
 
         event_id = get_event_id()
         while self.event_id_exists(guild_id, event_id):
@@ -119,6 +126,7 @@ class OnigiriDB:
             "type": event_type,
             "url": url,
             "datetime": dt,
+            "datetime_granularity": dt_g,
             "confirmed": conf,
             "stashed": False
         }
@@ -127,10 +135,12 @@ class OnigiriDB:
 
     def edit_event(
             self, guild_id, event_id, title, event_type=0, url="",
-            dt: Union[None, datetime.datetime] = None, conf=False, note=None):
+            dt: Union[None, datetime.datetime] = None, dt_g: dict = None, conf=False, note=None):
         if not title:
             return False
         else:
+            if not dt_g:
+                dt_g = DEFAULT_DT_G
             if note is None:
                 prev_note = self.get_event(guild_id, event_id).get("note", "")
                 note = prev_note
@@ -141,6 +151,7 @@ class OnigiriDB:
                 "type": event_type,
                 "url": url,
                 "datetime": dt,
+                "datetime_granularity": dt_g,
                 "confirmed": conf,
                 "stashed": False,
                 "note": note
@@ -173,6 +184,14 @@ class OnigiriDB:
     def edit_event_datetime(self, guild_id, event_id, dt: Union[None, datetime.datetime] = None):
         self.events.update_one(
             {"$and": [{"guild_id": guild_id, "event_id": event_id}]}, {"$set": {"datetime": dt}})
+
+    def edit_event_datetime_granularity(self, guild_id, event_id, granularity: dict = None):
+        if not granularity:
+            granularity = DEFAULT_DT_G
+        self.events.update_one(
+            {"$and": [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"datetime_granularity": granularity}}
+        )
 
     def edit_event_confirmed(self, guild_id, event_id, conf: bool = False):
         self.events.update_one(
