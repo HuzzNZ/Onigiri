@@ -80,7 +80,7 @@ def parse_date(date_str: str, g: bool = False) -> Union[datetime, None, dict]:
 
     if g:
         return {
-            'year': bool(year),
+            'year': True,
             'month': bool(month),
             'day': bool(day)
         }
