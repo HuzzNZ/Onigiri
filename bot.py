@@ -246,13 +246,14 @@ if __name__ == "__main__":
     async def add(interaction: discord.Interaction,
                   title: str, url: str = "", date: str = "", time: str = "",
                   event_type: str = 'stream'):
-        dt = None
+        dt, dt_g = None, None
         if date:
             dt = parse_date(date)
+            dt_g = parse_date(date, True)
             if time:
                 dt = parse_time(time, dt)
         t = parse_type(event_type)
-        event_id = interaction.client.db.add_event(interaction.guild_id, title, t, url, dt)
+        event_id = interaction.client.db.add_event(interaction.guild_id, title, t, url, dt, dt_g)
         try:
             await interaction.response.send_message(f"{YES}**Event `{event_id}` added!**",
                                                     ephemeral=True)
@@ -332,9 +333,12 @@ if __name__ == "__main__":
                    event_type: str = 'stream', note: str = ''):
         if date:
             dt = parse_date(date)
+            dt_g = parse_date(date, True)
             if time:
                 dt = parse_time(time, dt)
             interaction.client.db.edit_event_datetime(interaction.guild.id, event_id, dt)
+            interaction.client.db.edit_event_datetime_granularity(
+                interaction.guild.id, event_id, dt_g)
         elif time and not (date and time):
             date_dt = interaction.client.db.get_event(interaction.guild.id, event_id).get(
                 "datetime"
@@ -355,9 +359,16 @@ if __name__ == "__main__":
                     f"> **Tip:** *You can click on the **`... used /edit`** "
                     f"on top of this message to retrieve your last command!*")
             interaction.client.db.edit_event_note(interaction.guild.id, event_id, note)
-
-        await interaction.response.send_message(f"{YES}**Event `{event_id}` updated.**",
-                                                ephemeral=True)
+        try:
+            await interaction.response.send_message(f"{YES}**Event `{event_id}` updated.**",
+                                                    ephemeral=True)
+        except discord.InteractionResponded:
+            try:
+                await interaction.edit_original_message(
+                    content=f"{YES}**Event `{event_id}` updated.**")
+            except discord.InteractionResponded:
+                await interaction.followup.send(
+                    content=f"{YES}**Event `{event_id}` updated.**", ephemeral=True)
         await interaction.client.update_schedule(interaction.guild.id)
 
 
@@ -420,10 +431,13 @@ if __name__ == "__main__":
         reset = False
         if date:
             dt = parse_date(date)
+            dt_g = parse_date(date, True)
         else:
             dt = None
+            dt_g = None
             reset = True
         interaction.client.db.edit_event_datetime(interaction.guild.id, event_id, dt)
+        interaction.client.db.edit_event_datetime_granularity(interaction.guild.id, event_id, dt_g)
         await interaction.response.send_message(
             f"{YES}**Date of event `{event_id}` {'updated' if not reset else 'reset'}.**",
             ephemeral=True)

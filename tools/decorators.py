@@ -5,7 +5,7 @@ import discord
 
 from apis.youtube_api import YouTubeURL
 from .tools import validate_yt
-from .constants import YES, CANCELLED, EVENT_TYPES, YT
+from .constants import YES, CANCELLED, EVENT_TYPES, YT, DEFAULT_DT_G
 from .exceptions import GuildNotRegistered, GuildNotEnabled, MessageUnreachable, BadInput
 from .parsers import parse_time, parse_date
 from .views import PopulateFromURLView
@@ -86,12 +86,15 @@ def check_date_time(func):
     async def wrapper(*args, **kwargs):
         interaction: discord.Interaction = args[0]
         current_datetime = interaction.client.db.get_guild(interaction.guild.id).get("datetime")
+        dt_g = interaction.client.db.get_guild(interaction.guild.id).get(
+            "datetime_granularity", DEFAULT_DT_G)
 
         date: str = kwargs.get("date", "")
         time: str = kwargs.get("time", "")
 
-        if time and (not current_datetime and not date):  # Check if a date is/will be set
-            raise BadInput(f"**No date set on event!** Please add a date before adding a time.")
+        if time and (not (current_datetime and dt_g.get('day')) and not date):
+            raise BadInput(f"**No day-specific date set on event!** "
+                           f"Please set a date before adding a time.")
 
         if date:  # Check date input
             try:
@@ -167,7 +170,7 @@ def check_url(func):
                                     video.get_event_type(),
                                     video.url,
                                     video.get_datetime_jst(),
-                                    True
+                                    conf=True
                                 )
                                 message = f"{YES}**Event `{event_id}` added!**"
                             else:
@@ -178,7 +181,7 @@ def check_url(func):
                                     video.get_event_type(),
                                     video.url,
                                     video.get_datetime_jst(),
-                                    True
+                                    conf=True
                                 )
                                 message = f"{YES}**Event `{event_id}` updated.**"
                             await interaction.edit_original_message(
