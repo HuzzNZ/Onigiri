@@ -98,8 +98,12 @@ class OnigiriDB:
 
     def get_guild_events(self, guild_id):
         return [make_datetime_jst(k) for k in self.events.find(
-            {"guild_id": guild_id}, sort=[("datetime", pymongo.DESCENDING),
-                                          ('datetime_granularity', pymongo.ASCENDING)])]
+            {"guild_id": guild_id}, sort=[
+                ("datetime", pymongo.DESCENDING),
+                ('datetime_granularity', pymongo.ASCENDING),
+                ('note', pymongo.ASCENDING)
+            ]
+        )]
 
     def delete_guild(self, guild_id):
         self.guilds.delete_one({"guild_id": guild_id})
