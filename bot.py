@@ -232,8 +232,8 @@ if __name__ == "__main__":
         title="The title of the event. Max 30 characters. Try to keep it short and concise!",
         event_type="The type of the event. Defaults to stream.",
         url="The URL/Link of an event. YouTube stream/premiere URLs can be picked up.",
-        date="The date of the event in JST. (e.g. Jul 12, 22/7/12, 7/12, 12 Jul 2022, today, "
-             "tomorrow, etc.)",
+        date="The date of the event in JST. (e.g. Jul 12, 22/7/12, 7/12, 12 Jul 2022, October, 2023"
+             ", today, tomorrow, etc.)",
         time="The time of the event in JST. (e.g. 8:00 pm, 20:00, 20, 3am, 27:00, now, etc.)")
     @app_commands.guild_only()
     @app_commands.autocomplete(event_type=type_ac)
@@ -315,8 +315,8 @@ if __name__ == "__main__":
         title="The title of the event. Max 30 characters. Try to keep it short and concise!",
         event_type="The type of the event. Defaults to stream.",
         url="The URL/Link of an event. YouTube stream/premiere URLs can be picked up.",
-        date="The date of the event in JST. (e.g. Jul 12, 22/7/12, 7/12, 12 Jul 2022, today, "
-             "tomorrow, etc.)",
+        date="The date of the event in JST. (e.g. Jul 12, 22/7/12, 7/12, 12 Jul 2022, October, 2023"
+             ", today, tomorrow, etc.)",
         time="The time of the event in JST. (e.g. 8:00 pm, 20:00, 20, 3am, 27:00, etc.)",
         note="The note to the event. Max 30 characters.")
     @app_commands.rename(event_id="id")
@@ -418,9 +418,9 @@ if __name__ == "__main__":
     @tree.command(name="date", description="Edits the date of an event. "
                                            "Editing the date will reset the time.")
     @app_commands.describe(event_id=EVENT_ID_DESC)
-    @app_commands.describe(date="The date of the event in JST. "
-                                "(e.g. Jul 12, 22/7/12, 7/12, 12 Jul 2022, today, tomorrow, etc.) "
-                                "Enter nothing clear the date.")
+    @app_commands.describe(
+        date="The date of the event in JST. (e.g. Jul 12, 22/7/12, 7/12, 12 Jul 2022, October, 2023"
+             ", today, tomorrow, etc.) Enter nothing clear the date.")
     @app_commands.rename(event_id="id")
     @app_commands.guild_only()
     @check_general
