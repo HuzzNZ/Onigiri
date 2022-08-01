@@ -101,7 +101,7 @@ class OnigiriDB:
             {"guild_id": guild_id}, sort=[
                 ("datetime", pymongo.DESCENDING),
                 ('datetime_granularity', pymongo.ASCENDING),
-                ('note', pymongo.ASCENDING)
+                ('note', pymongo.DESCENDING)
             ]
         )]
 
