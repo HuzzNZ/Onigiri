@@ -32,30 +32,43 @@ if __name__ == "__main__":
         schedule_channel_id = channel.id
 
         current_guild = interaction.client.db.get_guild(guild_id)
-        current_channel = current_guild.get("schedule_channel_id")
-        current_message = current_guild.get("schedule_message_id")
-        reset = False
-        try:
-            await interaction.client.get_channel(current_channel).fetch_message(current_message)
-        except (discord.NotFound, discord.Forbidden, AttributeError):
-            reset = True
-        if not current_channel or current_channel != schedule_channel_id or reset:
-            try:
-                message = await interaction.client.new_schedule(guild_id, schedule_channel_id)
-            except discord.Forbidden:
-                await interaction.followup.send(
-                    f"{NO}**Setup failed.** Check that the bot has the permissions to **view**, "
-                    "and **send messages** in the correct channel.")
-                return
 
-            interaction.client.db.add_or_edit_guild(guild_id, schedule_channel_id, message.id)
-            await interaction.client.update_schedule(guild_id)
+        if current_guild:  # Has this guild been set up yet?
+            current_channel = current_guild.get("schedule_channel_id")
+
+            if current_channel == schedule_channel_id:  # Is the channel the same?
+                migrated = bool(current_guild.get("schedule_message_ids"))
+
+                if migrated:  # Does the guild need migration to multiple messages?
+                    current_messages = current_guild.get("schedule_message_ids")
+                    if not current_messages:
+                        current_messages = [current_guild.get("schedule_message_id")]
+                    reset = False
+                    try:
+                        for m in current_messages:
+                            channel = interaction.client.get_channel(current_channel)
+                            await channel.fetch_message(m)
+                    except (discord.NotFound, discord.Forbidden, AttributeError):
+                        reset = True
+
+                    if not reset:  # Can the message be reached?
+                        await interaction.followup.send(
+                            f"{NO}**The schedule message channel is already "
+                            f"<#{schedule_channel_id}>**."
+                        )
+                        return
+        try:  # Try to make new messages
+            messages = await interaction.client.new_schedule(guild_id, schedule_channel_id)
+        except discord.Forbidden:
             await interaction.followup.send(
-                f"{YES}**The schedule message channel has been set to <#{schedule_channel_id}>**, "
-                f"and a new message was created.\n> <{message.jump_url}>")
-        else:
-            await interaction.followup.send(
-                f"{NO}**The schedule message channel is already <#{schedule_channel_id}>**.")
+                f"{NO}**Setup failed.** Check that the bot has the permissions to **view**, "
+                "and **send messages** in the correct channel."
+            )
+            return
+        await interaction.client.update_schedule(guild_id)
+        await interaction.followup.send(
+            f"{YES}**The schedule message channel has been set to <#{schedule_channel_id}>**, "
+            f"and new messages were created.\n> <{messages[0].jump_url}>")
 
     @tree.command(description="Disables the bot on this server. (Does not remove event data!)")
     @app_commands.guild_only()

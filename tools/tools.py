@@ -32,12 +32,9 @@ def log_time() -> str:
     return datetime.now().strftime('[%b %d %H:%M:%S]  ')
 
 
-def render_schedule(guild: dict, events: [dict]) -> str:
+def render_schedule(guild: dict, events: [dict], render_past: bool = False) -> list:
     """
-    Returns a rendered string of a guild's schedule.
-    :param guild:
-    :param events:
-    :return:
+    Returns a rendered list of lines of a guild's schedule.
     """
     talent_name: str = guild.get("talent")
     content_list = [get_headline(talent_name), ""]
@@ -51,7 +48,10 @@ def render_schedule(guild: dict, events: [dict]) -> str:
     if events:
         past, future, unspecified = separate_events(events)
         if past:
-            content_list += [f'> ***{len(past)}** events in history.*']
+            if render_past:
+                content_list += render_past_events(past, 3)
+            else:
+                content_list += [f'> ***{len(past)}** events in history.*']
             content_list += [""]
 
         future = future[::-1] + unspecified
@@ -70,8 +70,7 @@ def render_schedule(guild: dict, events: [dict]) -> str:
     else:
         content_list += ["> *No events. Use **/add**, or **/add-yt** to add some events!*"]
 
-    content = "\n".join(content_list)
-    return content
+    return content_list
 
 
 async def type_ac(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:

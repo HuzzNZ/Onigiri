@@ -1,8 +1,9 @@
 import logging
-from typing import Optional
+from typing import Optional, List
 
 import discord
 from discord.ext import commands, tasks
+from numpy import array_split
 
 from apis.database_api import OnigiriDB
 from tools import *
@@ -31,14 +32,21 @@ class Onigiri(commands.Bot):
                 f"/{interaction.command.name} in {interaction.guild.name} "
                 f"({interaction.guild.id})>")
 
-    async def new_schedule(self, guild_id: int, channel_id: int):
+    async def new_schedule(self, guild_id: int, channel_id: int) -> [discord.Message]:
         guild = self.get_guild(guild_id)
         self.logger.info(f"Creating new schedule for guild {guild.name} ({guild.id}).")
         channel = self.get_channel(channel_id)
-        message = await channel.send(content=".")
-        return message
+        messages = []
+        for i in range(2):
+            messages.append(await channel.send(content="** **"))
+        self.db.add_or_edit_guild(
+            guild_id,
+            channel_id,
+            [m.id for m in messages]
+        )
+        return messages
 
-    async def update_schedule(self, guild_id: int) -> Optional[discord.Message]:
+    async def update_schedule(self, guild_id: int) -> Optional[List[discord.Message]]:
         self.logger.info(f"Updating schedule for guild {guild_id}.")
 
         guild = self.get_guild(guild_id)
@@ -54,10 +62,30 @@ class Onigiri(commands.Bot):
         if not channel:
             raise discord.NotFound
 
-        message = await channel.fetch_message(guild.get("schedule_message_id"))
-        content = render_schedule(guild, events)
-        self.logger.info(f"    ↳ {guild_id}: {len(content)} characters.")
-        return await message.edit(content=content)
+        message_ids = guild.get("schedule_message_ids")
+        render_past = True
+        if not message_ids:
+            message_ids = [guild.get("schedule_message_id")]
+            self.logger.info(f"    ↳ {guild_id}: Guild not yet migrated!")
+            render_past = False
+
+        messages = len(message_ids)
+        contents = render_schedule(guild, events, render_past)
+        message_contents = [list(x) for x in array_split(contents, messages)]
+        return_messages = []
+        total_length = 0
+
+        for i in range(len(message_ids)):
+            msg = await channel.fetch_message(message_ids[i])
+            if not message_contents[i][-1]:
+                message_contents[i][-1] = "** **"
+            content = "\n".join(message_contents[i])
+            message = await msg.edit(content=content)
+            total_length += len(content)
+            self.logger.info(f"    ↳ {guild_id}: Message {i+1}, {len(content)} characters.")
+            return_messages.append(message)
+        self.logger.info(f"    ↳ {guild_id}: Total {total_length} characters.")
+        return return_messages
 
     @tasks.loop(minutes=5)
     async def loop_refresh(self):
