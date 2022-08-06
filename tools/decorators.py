@@ -41,14 +41,16 @@ def check_general(func):
 
         # Check schedule message is reachable
         current_channel = guild.get("schedule_channel_id")
-        current_message = guild.get("schedule_message_id")
+        current_messages = guild.get("schedule_message_ids")
+        if not current_messages:
+            current_messages = [guild.get("schedule_message_id")]
         try:
-            await interaction.client.get_channel(current_channel).fetch_message(current_message)
+            for m in current_messages:
+                channel = interaction.client.get_channel(current_channel)
+                await channel.fetch_message(m)
         except (discord.NotFound, discord.Forbidden, AttributeError):
             raise MessageUnreachable
-
         return await func(*args, **kwargs)
-
     return wrapper
 
 

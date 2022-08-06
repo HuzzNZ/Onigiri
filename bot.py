@@ -164,6 +164,9 @@ if __name__ == "__main__":
         guild = interaction.client.db.get_guild(interaction.guild.id)
         editor_role_mention = f"<@&{guild.get('editor_role_id')}>" if guild.get('editor_role_id') \
             else "`None`"
+        migrated = bool(guild.get('schedule_message_ids'))
+        message_id_display = f'`{str(guild.get("schedule_message_id"))}`' if not migrated else \
+            ', '.join([f'`{x}`' for x in guild.get('schedule_message_ids')])
         msg = f"__**{interaction.guild.name}'s {interaction.client.user.mention} " \
               f"Configuration**__\n\n" \
               f"> **Enabled**: {YES if guild.get('enabled') else NO}\n> \n" \
@@ -171,7 +174,8 @@ if __name__ == "__main__":
               f"> **Talent Name**: {guild.get('talent', '`None`')}\n> \n" \
               f"> **Description**: {guild.get('description', '`None`')}\n> \n" \
               f"> **Schedule Channel**: <#{guild.get('schedule_channel_id')}>\n" \
-              f"> **Schedule Message ID**: `{guild.get('schedule_message_id')}`"
+              f"> **Schedule Message ID{'' if not migrated else 's'}**: " \
+              f"{message_id_display}"
         await interaction.response.send_message(content=msg, ephemeral=True)
 
     @app_commands.default_permissions(manage_channels=True)
