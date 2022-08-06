@@ -244,6 +244,17 @@ if __name__ == "__main__":
             ephemeral=True
         )
 
+    @tree.command(name='history', description="Shows the entire history of events.")
+    @app_commands.guild_only()
+    @check_general
+    async def history(interaction: discord.Interaction):
+        guild = interaction.client.db.get_guild(interaction.guild.id)
+        events = interaction.client.db.get_guild_events(interaction.guild.id)
+        await interaction.response.send_message(
+            embed=render_history(guild, events),
+            ephemeral=True
+        )
+
     @tree.command(description="Adds an event to the schedule.")
     @app_commands.describe(
         title="The title of the event. Max 30 characters. Try to keep it short and concise!",

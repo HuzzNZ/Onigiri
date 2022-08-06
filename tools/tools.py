@@ -7,7 +7,8 @@ from discord import app_commands
 
 from .constants import YR, DD, ED
 from .helpers import \
-    get_headline, separate_events, render_past_events, render_next_up, render_future
+    get_headline, separate_events, render_past_events, render_next_up, render_future, \
+    render_history_events
 
 
 def validate_yt(link: str) -> Optional[str]:
@@ -71,6 +72,17 @@ def render_schedule(guild: dict, events: [dict], render_past: bool = False) -> l
         content_list += ["> *No events. Use **/add**, or **/add-yt** to add some events!*"]
 
     return content_list
+
+
+def render_history(guild: dict, events: [dict]) -> discord.Embed:
+    past, future, unspecified = separate_events(events)
+    future = future[::-1] + unspecified
+    events = past[::-1] + future
+    embed = discord.Embed(
+        title="Event History of " + guild.get("talent") + ":",
+        description="\n".join(render_history_events(events)) or "** **"
+    )
+    return embed
 
 
 async def type_ac(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:

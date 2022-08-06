@@ -121,6 +121,32 @@ def is_on_same_day(e1: dict, e2: dict) -> bool:
     return dt1.year == dt2.year and dt1.month == dt2.month and dt1.day == dt2.day
 
 
+def render_history_events(events: [dict]) -> [str]:
+    if not events:
+        return []
+    contents = []
+    for event in events:
+        s = "~~" if event.get("stashed") else ""
+        line = f"||`{event.get('event_id')}`|| "
+        if event.get("datetime"):
+            past = event.get("datetime") <= datetime.now(JST)
+        else:
+            past = False
+        emoji = STASHED if s else EMOJIPEDIA[event.get('type')].get(
+            'past' if past else 'confirmed' if event.get('confirmed') else 'unconfirmed')
+        line += emoji + " "
+        line += f"{s}**{format_event_time(event)}** - "
+        if event.get('url'):
+            line += '['
+        line += f"{event.get('title')}"
+        if event.get('url'):
+            line += f"]({event.get('url')})"
+        line += s
+
+        contents.append(line)
+    return contents
+
+
 def render_past_events(past_list: [dict], amount: int = 0) -> [str]:
     """
     Renders the "Past Events" section of the schedule.
