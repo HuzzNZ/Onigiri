@@ -31,12 +31,19 @@ class Onigiri(commands.Bot):
                 f"/{interaction.command.name} in {interaction.guild.name} "
                 f"({interaction.guild.id})>")
 
-    async def new_schedule(self, guild_id: int, channel_id: int):
+    async def new_schedule(self, guild_id: int, channel_id: int) -> [discord.Message]:
         guild = self.get_guild(guild_id)
         self.logger.info(f"Creating new schedule for guild {guild.name} ({guild.id}).")
         channel = self.get_channel(channel_id)
-        message = await channel.send(content=".")
-        return message
+        messages = []
+        for i in range(2):
+            messages.append(await channel.send(content="** **"))
+        self.db.add_or_edit_guild(
+            guild_id,
+            channel_id,
+            [m.id for m in messages]
+        )
+        return messages
 
     async def update_schedule(self, guild_id: int) -> Optional[discord.Message]:
         self.logger.info(f"Updating schedule for guild {guild_id}.")
