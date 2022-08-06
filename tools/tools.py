@@ -52,7 +52,7 @@ def render_schedule(guild: dict, events: [dict], render_past: bool = False) -> l
             if render_past:
                 content_list += render_past_events(past, 3)
             else:
-                content_list += [f'> ***{len(past)}** events in history.*']
+                content_list += [f'> ***{len(past)}** events in history. Try `/history`!*']
             content_list += [""]
 
         future = future[::-1] + unspecified
