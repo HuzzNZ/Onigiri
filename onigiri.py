@@ -79,6 +79,8 @@ class Onigiri(commands.Bot):
             msg = await channel.fetch_message(message_ids[i])
             if not message_contents[i][-1]:
                 message_contents[i][-1] = "** **"
+            if message_contents[i][0].startswith(" "):
+                message_contents[i][0] = "** **" + message_contents[i][0][1:]
             content = "\n".join(message_contents[i])
             message = await msg.edit(content=content)
             total_length += len(content)
