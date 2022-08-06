@@ -50,12 +50,15 @@ class OnigiriDB:
         return self.events.find_one({"$and": [{"guild_id": guild_id}, {"event_id": event_id}]})
 
     def add_or_edit_guild(self, guild_id, schedule_channel_id, schedule_message_ids):
+        current_guild = self.check_guild_exists(guild_id)
         new_guild = {
             "guild_id": guild_id,
             "schedule_channel_id": schedule_channel_id,
             "schedule_message_ids": schedule_message_ids,
             "enabled": True
         }
+        if current_guild:
+            new_guild = {**current_guild, **new_guild}
         document = self.guilds.find_one_and_replace({"guild_id": guild_id}, new_guild)
         if not document:
             self.guilds.insert_one(new_guild)
