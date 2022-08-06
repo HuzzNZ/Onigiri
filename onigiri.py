@@ -1,8 +1,9 @@
 import logging
-from typing import Optional
+from typing import Optional, List
 
 import discord
 from discord.ext import commands, tasks
+from numpy import array_split
 
 from apis.database_api import OnigiriDB
 from tools import *
@@ -45,7 +46,7 @@ class Onigiri(commands.Bot):
         )
         return messages
 
-    async def update_schedule(self, guild_id: int) -> Optional[discord.Message]:
+    async def update_schedule(self, guild_id: int) -> Optional[List[discord.Message]]:
         self.logger.info(f"Updating schedule for guild {guild_id}.")
 
         guild = self.get_guild(guild_id)
@@ -61,10 +62,26 @@ class Onigiri(commands.Bot):
         if not channel:
             raise discord.NotFound
 
-        message = await channel.fetch_message(guild.get("schedule_message_id"))
-        content = render_schedule(guild, events)
-        self.logger.info(f"    ↳ {guild_id}: {len(content)} characters.")
-        return await message.edit(content=content)
+        message_ids = guild.get("schedule_message_ids")
+        if not message_ids:
+            message_ids = [guild.get("schedule_message_id")]
+            self.logger.info(f"    ↳ {guild_id}: Guild not yet migrated!")
+
+        messages = len(message_ids)
+        contents = render_schedule(guild, events)
+        message_contents = [list(x) for x in array_split(contents, messages)]
+        return_messages = []
+        total_length = 0
+
+        for i in range(len(message_ids)):
+            msg = await channel.fetch_message(message_ids[i])
+            content = "\n".join(message_contents[i])
+            message = await msg.edit(content=content)
+            total_length += len(content)
+            self.logger.info(f"    ↳ {guild_id}: Message {i+1}, {len(content)} characters.")
+            return_messages.append(message)
+        self.logger.info(f"    ↳ {guild_id}: Total {total_length} characters.")
+        return return_messages
 
     @tasks.loop(minutes=5)
     async def loop_refresh(self):

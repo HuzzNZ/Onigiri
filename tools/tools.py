@@ -32,9 +32,9 @@ def log_time() -> str:
     return datetime.now().strftime('[%b %d %H:%M:%S]  ')
 
 
-def render_schedule(guild: dict, events: [dict]) -> str:
+def render_schedule(guild: dict, events: [dict]) -> list:
     """
-    Returns a rendered string of a guild's schedule.
+    Returns a rendered list of lines of a guild's schedule.
     :param guild:
     :param events:
     :return:
@@ -70,8 +70,7 @@ def render_schedule(guild: dict, events: [dict]) -> str:
     else:
         content_list += ["> *No events. Use **/add**, or **/add-yt** to add some events!*"]
 
-    content = "\n".join(content_list)
-    return content
+    return content_list
 
 
 async def type_ac(interaction: discord.Interaction, current: str) -> List[app_commands.Choice[str]]:
