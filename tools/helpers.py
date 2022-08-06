@@ -141,7 +141,7 @@ def render_past_events(past_list: [dict], amount: int = 0) -> [str]:
     for i in range(len(past_list)):
         event = past_list[i]
         is_last = i == len(past_list) - 1
-        nl_prefix = f"{NONE if is_last else DD}{' ' * 13}"
+        nl_prefix = f"{NONE if is_last else DD}{' ' * 15}"
         s = "~~" if event.get("stashed") else ""
 
         contents.append(f"{DD}")
@@ -168,7 +168,7 @@ def render_next_up(event: dict) -> [str]:
     if not event:
         return []
 
-    nl_prefix = f"{DD}{' ' * 7}"
+    nl_prefix = f"{DD}{' ' * 15}"
     s = "~~" if event.get("stashed") else ""
 
     emoji = EMOJIPEDIA[event.get('type')].get(
@@ -177,7 +177,7 @@ def render_next_up(event: dict) -> [str]:
     contents = [
         f"⏰  __**Next Up**__",
         f"{DD}",
-        f"||`{event.get('event_id')}`||   {emoji}  **{s}{format_event_time(event)}{s}**"
+        f"{DR}  ||`{event.get('event_id')}`||   {emoji}  **{s}{format_event_time(event)}{s}**"
     ]
 
     if will_use_timestamp(event):
@@ -201,7 +201,6 @@ def render_future(future_list: [dict]) -> [str]:
     :param future_list: A list of events representing upcoming events.
     :return: A formatted list of strings representing the upcoming events.
     """
-    # TODO: Add back stubby!!!
     if not future_list:
         return []
 
@@ -209,7 +208,7 @@ def render_future(future_list: [dict]) -> [str]:
     previous_event = {}
     for event in future_list:
         uses_timestamp = will_use_timestamp(event)
-        nl_prefix = f"{DD}{' ' * 7}"
+        nl_prefix = f"{DD}{' ' * 15}"
         s = "~~" if event.get("stashed") else ""
 
         emoji = (EMOJIPEDIA[event.get('type')].get(
@@ -219,7 +218,7 @@ def render_future(future_list: [dict]) -> [str]:
             contents.append(f"{DD}")
 
         contents.append(
-            f"||`{event.get('event_id')}`||   {emoji}  "
+            f"{DR}  ||`{event.get('event_id')}`||   {emoji}  "
             f"{s}**{format_event_time(event)}**"
             f"{('  ' + event.get('title')) if not uses_timestamp else ''}{s}")
 

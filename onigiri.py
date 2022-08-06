@@ -63,18 +63,22 @@ class Onigiri(commands.Bot):
             raise discord.NotFound
 
         message_ids = guild.get("schedule_message_ids")
+        render_past = True
         if not message_ids:
             message_ids = [guild.get("schedule_message_id")]
             self.logger.info(f"    ↳ {guild_id}: Guild not yet migrated!")
+            render_past = False
 
         messages = len(message_ids)
-        contents = render_schedule(guild, events)
+        contents = render_schedule(guild, events, render_past)
         message_contents = [list(x) for x in array_split(contents, messages)]
         return_messages = []
         total_length = 0
 
         for i in range(len(message_ids)):
             msg = await channel.fetch_message(message_ids[i])
+            if not message_contents[i][-1]:
+                message_contents[i][-1] = "** **"
             content = "\n".join(message_contents[i])
             message = await msg.edit(content=content)
             total_length += len(content)
