@@ -162,7 +162,7 @@ def render_past_events(past_list: [dict], amount: int = 0) -> [str]:
     past_list = past_list[:amount][::-1]
     contents = [
         f"🗂️  __**Past {min(amount, len(past_list))} Event{'s' if len(past_list) != 1 else ''}**__ "
-        f"({total_length} total. Try `/history`!)"]
+        f"See all ({total_length} events with **`/history`**)"]
 
     for i in range(len(past_list)):
         event = past_list[i]
