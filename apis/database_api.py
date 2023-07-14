@@ -42,6 +42,7 @@ class OnigiriDB:
         self.db = self.client["Onigiri-Fillings"]
         self.guilds = self.db["Guilds"]
         self.events = self.db["Events"]
+        self.sp = self.db["Special"]
 
     def check_guild_exists(self, guild_id):
         return self.guilds.find_one({"guild_id": guild_id}) or False
@@ -112,8 +113,16 @@ class OnigiriDB:
         duplicate = [x for x in self.events.find({"$and": [{"guild_id": guild_id}, {"event_id": event_id}]})]
         return False if not duplicate else True
 
-    def add_event(self, guild_id, title, event_type=0, url="",
-                  dt: Union[None, datetime.datetime] = None, dt_g: dict = None, conf=False):
+    def add_event(
+            self,
+            guild_id,
+            title,
+            event_type=0,
+            url="",
+            dt: Union[None, datetime.datetime] = None,
+            dt_g: dict = None,
+            conf=False
+    ):
         def get_event_id():
             return ''.join(random.choices(string.digits, k=4))
 
@@ -160,7 +169,10 @@ class OnigiriDB:
                 "stashed": False,
                 "note": note
             }
-            self.events.replace_one({"$and": [{"guild_id": guild_id, "event_id": event_id}]}, edited_event)
+            self.events.replace_one(
+                {"$and": [{"guild_id": guild_id, "event_id": event_id}]},
+                edited_event
+            )
         return event_id
 
     def get_event(self, guild_id, event_id):
@@ -171,23 +183,33 @@ class OnigiriDB:
             return make_datetime_jst(event)
 
     def delete_event(self, guild_id, event_id):
-        self.events.delete_one({"$and": [{"guild_id": guild_id, "event_id": event_id}]})
+        self.events.delete_one(
+            {"$and": [{"guild_id": guild_id, "event_id": event_id}]}
+        )
 
     def edit_event_title(self, guild_id, event_id, title: str):
         self.events.update_one(
-            {"$and": [{"guild_id": guild_id, "event_id": event_id}]}, {"$set": {"title": sanitize_formatting(title)}})
+            {"$and": [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"title": sanitize_formatting(title)}}
+        )
 
     def edit_event_type(self, guild_id, event_id, event_type: int = 0):
         self.events.update_one(
-            {"$and": [{"guild_id": guild_id, "event_id": event_id}]}, {"$set": {"type": event_type}})
+            {"$and": [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"type": event_type}}
+        )
 
     def edit_event_url(self, guild_id, event_id, url: str = ""):
         self.events.update_one(
-            {"$and": [{"guild_id": guild_id, "event_id": event_id}]}, {"$set": {"url": url}})
+            {"$and": [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"url": url}}
+        )
 
     def edit_event_datetime(self, guild_id, event_id, dt: Union[None, datetime.datetime] = None):
         self.events.update_one(
-            {"$and": [{"guild_id": guild_id, "event_id": event_id}]}, {"$set": {"datetime": dt}})
+            {"$and": [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"datetime": dt}}
+        )
 
     def edit_event_datetime_granularity(self, guild_id, event_id, granularity: dict = None):
         if not granularity:
@@ -199,15 +221,41 @@ class OnigiriDB:
 
     def edit_event_confirmed(self, guild_id, event_id, conf: bool = False):
         self.events.update_one(
-            {"$and": [{"guild_id": guild_id, "event_id": event_id}]}, {"$set": {"confirmed": conf}})
+            {"$and": [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"confirmed": conf}}
+        )
 
     def edit_event_stashed(self, guild_id, event_id, stashed: bool = False):
         self.events.update_one(
-            {"$and": [{"guild_id": guild_id, "event_id": event_id}]}, {"$set": {"stashed": stashed}})
+            {"$and": [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"stashed": stashed}}
+        )
 
     def edit_event_note(self, guild_id, event_id, note: str = ""):
         self.events.update_one(
-            {"$and": [{"guild_id": guild_id, "event_id": event_id}]}, {"$set": {"note": sanitize_formatting(note)}})
+            {"$and": [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"note": sanitize_formatting(note)}}
+        )
+
+    def set_auto_role_status(self, guild_id: int, status: bool) -> None:
+        g = self.sp.find_one({'guild_id': guild_id})
+        if g:
+            self.sp.update_one(
+                {'guild_id': guild_id},
+                {'$set': {'auto_role': status}}
+            )
+        else:
+            self.sp.insert_one(
+                {
+                    'guild_id': guild_id,
+                    'purpose': 'auto_role',
+                    'auto_role': status
+                }
+            )
+
+    def get_auto_role_status(self, guild_id: int) -> bool:
+        g = self.sp.find_one({'guild_id': guild_id, 'purpose': "auto_role"})
+        return False if not g else g.get("auto_role")
 
 
 if __name__ == "__main__":

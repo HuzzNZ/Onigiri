@@ -17,6 +17,10 @@ class Onigiri(commands.Bot):
         self.logger = logging.getLogger("Onigiri")
         self.logger.setLevel(logging.INFO)
         self.logger.addHandler(LOG_HANDLER)
+        self.ofs_auto_role_guild_id = 679651751753941002
+        self.ofs_auto_role_role_id = 679653891595304985
+        self.ofs_auto_role_status = self.db.get_auto_role_status(self.ofs_auto_role_guild_id)
+        self.test_auto_role_status = self.db.get_auto_role_status(547571343986524180)
         super().__init__(command_prefix=commands.when_mentioned_or("$"), intents=intents)
 
     async def setup_hook(self):
@@ -28,9 +32,20 @@ class Onigiri(commands.Bot):
         if interaction.command:
             self.logger.info("")
             self.logger.info(
-                f"<{interaction.user.name}#{interaction.user.discriminator} used "
+                f"<{interaction.user.name} used "
                 f"/{interaction.command.name} in {interaction.guild.name} "
-                f"({interaction.guild.id})>")
+                f"({interaction.guild.id}).>")
+
+    async def on_member_update(self, before: discord.Member, m: discord.Member):
+        if not before.guild.id == self.ofs_auto_role_guild_id:
+            return
+        if self.ofs_auto_role_status and before.pending and not m.pending:
+            await m.add_roles(self.get_guild(self.ofs_auto_role_guild_id).get_role(self.ofs_auto_role_role_id))
+            self.logger.info("")
+            self.logger.info(
+                f"<User {m.id} ({m.name}) completed verification and was assigned a role in "
+                f"{self.get_guild(self.ofs_auto_role_guild_id).name} ({self.ofs_auto_role_guild_id}).>"
+            )
 
     async def new_schedule(self, guild_id: int, channel_id: int) -> [discord.Message]:
         guild = self.get_guild(guild_id)
@@ -89,7 +104,7 @@ class Onigiri(commands.Bot):
             content = "\n".join(message_contents[i])
             message = await msg.edit(content=content)
             total_length += len(content)
-            self.logger.info(f"    ↳ {guild_id}: Message {i+1}, {len(content)} characters.")
+            self.logger.info(f"    ↳ {guild_id}: Message {i + 1}, {len(content)} characters.")
             return_messages.append(message)
         self.logger.info(f"    ↳ {guild_id}: Total {total_length} characters.")
         return return_messages

@@ -21,7 +21,7 @@ def will_use_timestamp(event: dict) -> bool:
     :return: True if the event should be displayed with a Discord timestamp, False if not
     """
     dt: datetime = event.get("datetime")
-    return event.get("confirmed") or (event.get('type') == 2 and not is_generic_date(dt))
+    return event.get("confirmed") or not is_generic_date(dt)
 
 
 def format_event_time(event: dict, relative: bool = False) -> str:
@@ -46,7 +46,7 @@ def format_event_time(event: dict, relative: bool = False) -> str:
                     time_format += ""
                 else:
                     base_str = ""
-                    time_format += "%b %-d"
+                    time_format += "%b %e"
                 if dt.year != now.year and not (now.month == 12 and dt.year - 1 == now.year):
                     time_format += ", %Y"
                 if not is_generic_date(dt):
