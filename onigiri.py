@@ -13,6 +13,8 @@ from tools.constants import LOG_HANDLER
 class Onigiri(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
+        intents.message_content = True
+        intents.members = True
         self.db = OnigiriDB()
         self.logger = logging.getLogger("Onigiri")
         self.logger.setLevel(logging.INFO)
