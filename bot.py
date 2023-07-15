@@ -286,7 +286,7 @@ if __name__ == "__main__":
             await interaction.response.send_message(f"{YES}**Event `{event_id}` added!**",
                                                     ephemeral=True)
         except discord.InteractionResponded:
-            await interaction.edit_original_message(content=f"{YES}**Event `{event_id}` added!**")
+            await interaction.edit_original_response(content=f"{YES}**Event `{event_id}` added!**")
         await interaction.client.update_schedule(interaction.guild.id)
 
     @tree.command(name="add-yt", description="Adds an event to the schedule using a YouTube URL.")
@@ -304,7 +304,7 @@ if __name__ == "__main__":
             await interaction.response.send_message(f"{NO}**No valid YouTube link found.**",
                                                     ephemeral=True)
         except discord.InteractionResponded:
-            await interaction.edit_original_message(content=f"{NO}**Cancelled.**")
+            await interaction.edit_original_response(content=f"{NO}**Cancelled.**")
         await interaction.client.update_schedule(interaction.guild.id)
 
     @tree.command(description="Deletes an event from the schedule.")
@@ -324,16 +324,16 @@ if __name__ == "__main__":
         if not timeout:
             if confirm.value:
                 interaction.client.db.delete_event(interaction.guild.id, event_id)
-                await interaction.edit_original_message(
+                await interaction.edit_original_response(
                     content=f"{YES}**Event `{event_id}` deleted.**", view=None
                 )
                 await interaction.client.update_schedule(interaction.guild.id)
             else:
-                await interaction.edit_original_message(
+                await interaction.edit_original_response(
                     content=f"{CANCELLED}  **Cancelled.**", view=None
                 )
         else:
-            await interaction.edit_original_message(
+            await interaction.edit_original_response(
                 content=f"{CANCELLED}  **Confirmation timed out.**", view=None
             )
 
@@ -392,7 +392,7 @@ if __name__ == "__main__":
                                                     ephemeral=True)
         except discord.InteractionResponded:
             try:
-                await interaction.edit_original_message(
+                await interaction.edit_original_response(
                     content=f"{YES}**Event `{event_id}` updated.**")
             except discord.InteractionResponded:
                 await interaction.followup.send(
@@ -437,7 +437,7 @@ if __name__ == "__main__":
                 ephemeral=True
             )
         except discord.InteractionResponded:
-            await interaction.edit_original_message(
+            await interaction.edit_original_response(
                 content=f"{YES}**URL of event `{event_id}` {'updated' if not reset else 'reset'}.**"
             )
 
@@ -603,7 +603,7 @@ if __name__ == "__main__":
             await interaction.response.send_message(NO + msg, ephemeral=True)
         except discord.InteractionResponded:
             try:
-                await interaction.edit_original_message(content=NO + msg)
+                await interaction.edit_original_response(content=NO + msg)
             except discord.InteractionResponded:
                 await interaction.followup.send(content=NO + msg, ephemeral=True)
 

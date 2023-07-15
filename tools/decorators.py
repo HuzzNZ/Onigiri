@@ -186,15 +186,15 @@ def check_url(func):
                                     conf=True
                                 )
                                 message = f"{YES}**Event `{event_id}` updated.**"
-                            await interaction.edit_original_message(
+                            await interaction.edit_original_response(
                                 content=message, view=None)
                             return await interaction.client.update_schedule(interaction.guild.id)
                         else:
-                            await interaction.edit_original_message(
+                            await interaction.edit_original_response(
                                 content=f"{CANCELLED}  **Ignoring YouTube link...**", view=None)
                             await asyncio.sleep(1)
                     else:
-                        await interaction.edit_original_message(
+                        await interaction.edit_original_response(
                             content=f"{CANCELLED}  **Confirmation timed out, ignoring YouTube link...**", view=None)
                         await asyncio.sleep(1)
         return await func(*args, **kwargs)
