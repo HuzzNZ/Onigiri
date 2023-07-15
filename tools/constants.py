@@ -16,8 +16,8 @@ JST = pytz.timezone("Asia/Tokyo")
 MONTHS = ["jan", 'feb', "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 EVENT_ID_DESC = "The 4-digit numeric ID associated with each event. (e.g. 1902, 6817, etc.)"
 EVENT_TYPES = ['stream', 'video', 'event', 'release', 'other']
-YR = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+\?v=" \
-     r"|embed\/|v\/)?)([\w\-]+)(\S+)?$"
+YR = r"^((?:https?:)?\/\/)?((?:www|m)\.)?((?:youtube(-nocookie)?\.com|youtu.be))(\/(?:[\w\-]+" \
+     r"\?v=|embed\/|live\/|v\/)?)([\w\-]+)(\S+)?$"
 DEFAULT_DT_G = {
     'year': True, 'month': True, 'day': True
 }
