@@ -28,6 +28,10 @@ class Onigiri(commands.Bot):
         self.logger.info('Starting refresh loop!')
         self.loop_refresh.start()
 
+    async def on_member_join(self, member: discord.Member):
+        self.logger.info(f'<{member.name} has joined {member.guild.name} ({member.guild.id}), '
+                         f'pending = {member.pending}>')
+
     async def on_interaction(self, interaction: discord.Interaction):
         if interaction.command:
             self.logger.info("")
@@ -40,6 +44,7 @@ class Onigiri(commands.Bot):
         if not before.guild.id == self.ofs_auto_role_guild_id:
             return
         if self.ofs_auto_role_status and before.pending and not m.pending:
+            self.logger.info(f'<{m.name} has been verified in {m.guild.name} ({m.guild.id}).>')
             await m.add_roles(self.get_guild(self.ofs_auto_role_guild_id).get_role(self.ofs_auto_role_role_id))
             self.logger.info("")
             self.logger.info(
