@@ -5,9 +5,14 @@ import discord
 from discord.ext import commands, tasks
 from numpy import array_split
 
-from apis.database_api import OnigiriDB
+from api.database_api import OnigiriDB
 from tools import *
 from tools.constants import LOG_HANDLER
+
+cogs = [
+    "features.schedule.cogs.schedule",
+    "features.general.cogs.general"
+]
 
 
 class Onigiri(commands.Bot):
@@ -27,6 +32,9 @@ class Onigiri(commands.Bot):
 
     async def setup_hook(self):
         self.logger.info(f'Logged in as {self.user} (ID: {self.user.id})')
+        for cog in cogs:
+            await self.load_extension(cog)
+            self.logger.info(f"Loaded cogs {cog}!")
         self.logger.info('Starting refresh loop!')
         self.loop_refresh.start()
 
@@ -39,7 +47,7 @@ class Onigiri(commands.Bot):
             self.logger.info("")
             self.logger.info(
                 f"<{interaction.user.name} used "
-                f"/{interaction.command.name} in {interaction.guild.name} "
+                f"/{interaction.command.qualified_name} in {interaction.guild.name} "
                 f"({interaction.guild.id}).>")
 
     async def on_member_update(self, before: discord.Member, m: discord.Member):

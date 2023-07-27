@@ -8,6 +8,8 @@ from discord import app_commands
 from discord.ext import commands
 from discord.ext.commands import Context, Greedy
 
+from exceptions import InvalidArgument
+from features import schedule
 from tools import *
 from tools.constants import *
 from onigiri import Onigiri
@@ -582,30 +584,43 @@ if __name__ == "__main__":
     tree.add_command(Reset())
 
     @tree.error
-    async def error_handler(
-            interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
-        if isinstance(error, GuildNotRegistered):
-            msg = "**This server has not yet been set up!** Run **/setup** first."
+    async def error_handler(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+        """
+        The global error handler.
+        """
+
+        if isinstance(error, InvalidArgument):
+            error_message = error.message
+
+        elif isinstance(error, GuildNotRegistered):
+            error_message = "**This server has not yet been set up!** Run **/setup** first."
+
         elif isinstance(error, GuildNotEnabled):
-            msg = "**I'm currently disabled.** Run **/enable** to enable me."
+            error_message = "**I'm currently disabled.** Run **/enable** to enable me."
+
         elif isinstance(error, MessageUnreachable):
-            msg = "**The schedule channel/message cannot be found.** Please check that the bot " \
+            error_message = "**The schedule channel/message cannot be found.** Please check that the bot " \
                   "has permissions to **read**, and **send messages** in the correct channel. If " \
                   "the issue persists, try running **/setup** again."
-        elif isinstance(error, BadInput):
-            msg = error.message
-        elif isinstance(error, discord.app_commands.CheckFailure):
-            msg = "**Missing permissions.**"
-        else:
-            raise error
 
+        elif isinstance(error, BadInput):
+            error_message = error.message
+
+        elif isinstance(error, discord.app_commands.CheckFailure):
+            error_message = "**Missing permissions.**"
+
+        else:
+            bot.logger.exception(error)
+            error_message = error.__traceback__
+
+        error_display = f"{NO}**Command `/{interaction.command.qualified_name}` failed**:\n```{error_message}```"
         try:
-            await interaction.response.send_message(NO + msg, ephemeral=True)
+            await interaction.response.send_message(error_display, ephemeral=True)
         except discord.InteractionResponded:
             try:
-                await interaction.edit_original_response(content=NO + msg)
+                await interaction.edit_original_response(content=error_display)
             except discord.InteractionResponded:
-                await interaction.followup.send(content=NO + msg, ephemeral=True)
+                await interaction.followup.send(content=error_display, ephemeral=True)
 
     @bot.command()
     @commands.guild_only()

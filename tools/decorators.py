@@ -3,7 +3,7 @@ from functools import wraps
 
 import discord
 
-from apis.youtube_api import YouTubeURL
+from api.youtube_api import YouTubeURL
 from .tools import validate_yt
 from .constants import YES, CANCELLED, EVENT_TYPES, YT, DEFAULT_DT_G
 from .exceptions import GuildNotRegistered, GuildNotEnabled, MessageUnreachable, BadInput
