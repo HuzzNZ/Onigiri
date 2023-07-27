@@ -17,6 +17,7 @@ class General(Cog):
         description=DESC_PREFIX + "Pong!"
     )
     async def ping(self, interaction: discord.Interaction):
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(f"{interaction.user.mention} Pong!", ephemeral=True)
 
 

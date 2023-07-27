@@ -4,8 +4,8 @@ from typing import Tuple, Optional, Literal
 
 import pytz
 
+from features.schedule.constants import JST, MONTHS
 from features.schedule.models import DatetimeGranularity
-from features.schedule.util import JST, MONTHS
 
 
 def parse_date(date_str: str) -> Tuple[Optional[datetime], DatetimeGranularity]:

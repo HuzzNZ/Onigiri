@@ -4,8 +4,8 @@ from typing import List
 import discord
 from discord import app_commands
 
-from features.schedule.database import ScheduleDB
 from exceptions import InvalidArgument
+from features.schedule.database import ScheduleDB
 from features.schedule.util import parse_date, parse_time
 
 

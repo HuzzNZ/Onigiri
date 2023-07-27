@@ -35,30 +35,30 @@ class ScheduleDB(AbstractScheduleDB):
         if not guild:
             return None
         else:
-            return GuildScheduleConfig.from_dict(guild)
+            return GuildScheduleConfig.from_mongo(guild)
 
     async def get_all_guilds(self) -> List[GuildScheduleConfig]:
-        return [GuildScheduleConfig.from_dict(x) for x in self.guilds.find()]
+        return [GuildScheduleConfig.from_mongo(x) for x in self.guilds.find()]
 
     async def get_enabled_guilds(self) -> List[GuildScheduleConfig]:
-        return [GuildScheduleConfig.from_dict(x) for x in self.guilds.find({"enabled": True})]
+        return [GuildScheduleConfig.from_mongo(x) for x in self.guilds.find({"enabled": True})]
 
     async def get_event(self, guild_id: int, event_id: str) -> Optional[Event]:
         event = self.events.find_one({"$and": [{"guild_id": guild_id}, {"event_id": event_id}]})
         if event:
-            return Event.from_dict(event)
+            return Event.from_mongo(event)
         else:
             return None
 
     async def get_all_events(self, guild_id: int) -> List[Event]:
-        return [Event.from_dict(k) for k in self.events.find(sort=[
+        return [Event.from_mongo(k) for k in self.events.find(sort=[
             ("datetime", pymongo.DESCENDING),
             ('datetime_granularity', pymongo.ASCENDING),
             ('note', pymongo.DESCENDING)
         ])]
 
     async def get_guild_events(self, guild_id: int) -> List[Event]:
-        return [Event.from_dict(k) for k in self.events.find(
+        return [Event.from_mongo(k) for k in self.events.find(
             {"guild_id": guild_id},
             sort=[
                 ("datetime", pymongo.DESCENDING),

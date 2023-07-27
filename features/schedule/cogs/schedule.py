@@ -4,19 +4,18 @@ from discord.ext.commands import GroupCog
 from discord.ui import button, View
 
 from features.metadata import features
+from features.schedule.constants import YES, THINKING, CANCELLED, NO, WARNING
 from features.schedule.database import ScheduleDB
 from features.schedule.models import Event
 from features.schedule.util import type_autocomplete, guild_registered, author_is_editor, validate_arguments, \
     author_is_admin, parse_date, parse_time, parse_type
-
 from onigiri import Onigiri
-from tools.constants import YES, THINKING, CANCELLED, NO, WARNING
 
 DESC_PREFIX = features['schedule']['desc_prefix']
 
 
 @app_commands.guild_only()
-class Schedule(GroupCog, group_name="schedule"):
+class Schedule(GroupCog, name="schedule", description="Commands under the schedule module."):
     def __init__(self, client: Onigiri):
         self.client = client
         self.db = ScheduleDB()
@@ -28,6 +27,7 @@ class Schedule(GroupCog, group_name="schedule"):
     @app_commands.describe(
         channel="The channel to host the schedule messages."
     )
+    @app_commands.default_permissions(manage_guild=True)
     @author_is_admin()
     async def setup_guild(self, interaction: discord.Interaction, channel: discord.TextChannel):
         class OverrideView(View):
@@ -50,6 +50,7 @@ class Schedule(GroupCog, group_name="schedule"):
         # Confirmation for overriding schedule channel
         if guild and guild.schedule_channel_id:
             view = OverrideView()
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
                 f"{WARNING}**You are currently overriding the schedule channel.** "
                 f"This will create new schedule messages in {channel.mention}, "
@@ -65,6 +66,7 @@ class Schedule(GroupCog, group_name="schedule"):
             else:
                 return await interaction.edit_original_response(content=f"{NO}**Response timed out.**", view=None)
         else:
+            # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"{THINKING}**Setting up...**", ephemeral=True)
 
         try:
@@ -102,6 +104,7 @@ class Schedule(GroupCog, group_name="schedule"):
     @app_commands.autocomplete(
         event_type=type_autocomplete
     )
+    @app_commands.default_permissions(send_messages=True)
     @guild_registered()
     @author_is_editor()
     @validate_arguments
@@ -130,6 +133,7 @@ class Schedule(GroupCog, group_name="schedule"):
             url=url
         )
         await self.db.create_event(event)
+        # noinspection PyUnresolvedReferences
         await interaction.response.send_message(f"{YES}**Event `{event.event_id}` created.**", ephemeral=True)
         await self.client.update_schedule(interaction.guild.id)
 

@@ -4,6 +4,7 @@ from typing import Literal, Optional, TypeVar, Type
 
 import pytz
 
+from features.schedule.constants import JST
 from features.schedule.models import DatetimeGranularity
 
 T = TypeVar('T')
@@ -27,7 +28,7 @@ class Event:
             guild_id=d["guild_id"],
             event_id=d["event_id"],
             title=d["title"],
-            datetime=utc_as_jst(d.get("datetime")),
+            datetime=d.get("datetime"),
             datetime_granularity=DatetimeGranularity.from_dict(d.get("datetime_granularity", {})),
             type=d.get("type", 0),
             stashed=d.get("stashed", False),
@@ -35,12 +36,18 @@ class Event:
             note=d.get("note", "")
         )
 
+    @classmethod
+    def from_mongo(cls: Type[T], d: dict) -> T:
+        event = cls.from_dict(d)
+        event.datetime = utc_as_jst(event.datetime)
+        return event
+
     def to_dict(self) -> dict:
         return {
             "guild_id": self.guild_id,
             "event_id": self.event_id,
             "title": self.title,
-            "datetime": jst_as_utc(self.datetime),
+            "datetime": self.datetime,
             "datetime_granularity": self.datetime_granularity.to_dict(),
             "type": self.type,
             "stashed": self.stashed,
@@ -51,13 +58,6 @@ class Event:
 
 def utc_as_jst(dt: Optional[datetime.datetime]) -> Optional[datetime.datetime]:
     if dt:
-        return dt.replace(tzinfo=pytz.utc).astimezone(pytz.timezone("Asia/Tokyo"))
-    else:
-        return None
-
-
-def jst_as_utc(dt: Optional[datetime.datetime]) -> Optional[datetime.datetime]:
-    if dt:
-        return dt.replace(tzinfo=pytz.timezone("Asia/Tokyo")).astimezone(pytz.utc)
+        return dt.replace(tzinfo=pytz.utc).astimezone(JST)
     else:
         return None

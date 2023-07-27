@@ -33,6 +33,10 @@ class GuildScheduleConfig:
             description=d.get("description", "")
         )
 
+    @classmethod
+    def from_mongo(cls: Type[T], d: dict) -> T:
+        return cls.from_dict(d)
+
     def to_dict(self) -> dict:
         return {
             "guild_id": self.guild_id,
