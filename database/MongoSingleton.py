@@ -11,6 +11,7 @@ T = TypeVar("T")
 
 class MongoSingleton:
     _instance = None
+    # Just to prevent myself from using this singleton incorrectly in the future
     _singleton_key = "77fwNHWihaAMpccNKrRUVmDvEWhOHj1o"
 
     @classmethod

@@ -1,32 +1,51 @@
+import logging
+from typing import List
+
 import discord
 from discord import app_commands
 from discord.ext.commands import GroupCog
 from discord.ui import button, View
 
-from features.metadata import features
-from features.schedule.constants import YES, THINKING, CANCELLED, NO, WARNING
+from exceptions import MessageUnsendable, MessageUnreachable
+from features.schedule.constants import YES, THINKING, CANCELLED, NO
 from features.schedule.database import ScheduleDB
-from features.schedule.models import Event
+from features.schedule.display_data import Descriptions, Messages
+from features.schedule.models import Event, GuildScheduleConfig
 from features.schedule.util import type_autocomplete, guild_registered, author_is_editor, validate_arguments, \
     author_is_admin, parse_date, parse_time, parse_type
 from onigiri import Onigiri
 
-DESC_PREFIX = features['schedule']['desc_prefix']
+desc = Descriptions()
+msg = Messages()
 
 
 @app_commands.guild_only()
 class Schedule(GroupCog, name="schedule", description="Commands under the schedule module."):
     def __init__(self, client: Onigiri):
+        self.logger = logging.getLogger("onigiri.schedule")
         self.client = client
         self.db = ScheduleDB()
+        self.number_of_messages = 2
 
-    @app_commands.command(
-        name="setup",
-        description=DESC_PREFIX + "Setup command. Sets the schedule channel and creates a new set of schedule messages."
-    )
-    @app_commands.describe(
-        channel="The channel to host the schedule messages."
-    )
+    async def create_schedule_messages(self, channel: discord.TextChannel) -> List[discord.Message]:
+        channel = self.client.get_channel(channel.id)
+        messages = []
+        for i in range(self.number_of_messages):
+            messages.append(await channel.send(content="** **"))
+        return messages
+
+    async def update_schedule_messages(self, guild: GuildScheduleConfig) -> None:
+        if not self.client.get_guild(guild.guild_id):
+            return
+        events = await self.db.get_guild_events(guild.guild_id)
+        channel = self.client.get_channel(guild.schedule_channel_id)
+        if not channel:
+            raise MessageUnreachable
+        num_messages = len(guild.schedule_message_id_array)
+        # TODO
+
+    @app_commands.command(name="setup", description=desc.cmd_setup)
+    @app_commands.describe(channel=desc.schedule_channel)
     @app_commands.default_permissions(manage_guild=True)
     @author_is_admin()
     async def setup_guild(self, interaction: discord.Interaction, channel: discord.TextChannel):
@@ -52,10 +71,7 @@ class Schedule(GroupCog, name="schedule", description="Commands under the schedu
             view = OverrideView()
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(
-                f"{WARNING}**You are currently overriding the schedule channel.** "
-                f"This will create new schedule messages in {channel.mention}, "
-                "and render the current schedule messages static (can be safely deleted).",
-                view=view, ephemeral=True
+                msg.setup_override.format(channel=channel.mention), view=view, ephemeral=True
             )
             timeout = await view.wait()
             if not timeout:
@@ -69,48 +85,41 @@ class Schedule(GroupCog, name="schedule", description="Commands under the schedu
             # noinspection PyUnresolvedReferences
             await interaction.response.send_message(f"{THINKING}**Setting up...**", ephemeral=True)
 
+        # Create messages
         try:
-            ...  # create_messages()
+            messages = await self.create_schedule_messages(channel)
         except discord.Forbidden:
-            ...  # err
+            raise MessageUnsendable
+        assert messages
 
+        # Update / create guild in DB
         if guild:
-            ...  # update guild
+            guild.schedule_message_id_array = [message.id for message in messages]
+            await self.db.update_guild(guild)
         else:
-            ...  # create guild
+            guild = GuildScheduleConfig(
+                guild_id=interaction.guild.id,
+                schedule_channel_id=interaction.channel.id,
+                schedule_message_id_array=[message.id for message in messages],
+                editor_role_id_array=[]
+            )
+            await self.db.create_guild(guild)
 
-        try:
-            ...  # update messages
-        except (discord.Forbidden, discord.NotFound):
-            ...  # err
+        await self.update_schedule_messages(guild)
         await interaction.edit_original_response(content=f"{YES}Done.")
 
-    @app_commands.command(
-        name="add",
-        description=DESC_PREFIX + "Adds an event to the schedule."
-    )
+    @app_commands.command(name="add", description=desc.cmd_add)
     @app_commands.describe(
-        title="The title of the event. Max 30 characters. Try to keep it short and concise!",
-        event_type="The type of the event. Defaults to stream.",
-        url="The URL/Link of an event. (YouTube URLs can be recognized)",
-        date="The date of the event in JST. (e.g. Jul 12, 22/7/12, 7/12, 12 Jul 2022, October, 2023, today, tomorrow, "
-             "etc.)",
-        time="The time of the event in JST. (e.g. 8:00 pm, 20:00, 20, 3am, 27:00, now, etc.)",
-        note="A note to go with the event."
+        title=desc.title, event_type=desc.event_type, url=desc.url, date=desc.date, time=desc.time, note=desc.note
     )
-    @app_commands.rename(
-        event_type="type"
-    )
-    @app_commands.autocomplete(
-        event_type=type_autocomplete
-    )
+    @app_commands.rename(event_type="type")
+    @app_commands.autocomplete(event_type=type_autocomplete)
     @app_commands.default_permissions(send_messages=True)
     @guild_registered()
     @author_is_editor()
     @validate_arguments
     async def add_event(
-            self,
-            interaction: discord.Interaction,
+            self, interaction: discord.Interaction,
             title: str,
             url: str = "",
             date: str = "",
@@ -118,10 +127,9 @@ class Schedule(GroupCog, name="schedule", description="Commands under the schedu
             note: str = "",
             event_type: str = 'stream',
     ) -> None:
-        datetime = None
-        date, granularity = parse_date(date)
-        if date:
-            datetime = parse_time(time, date)
+        datetime, granularity = parse_date(date)
+        if datetime:
+            datetime = parse_time(time, datetime)
         event = Event(
             guild_id=interaction.guild.id,
             event_id=await self.db.get_available_event_id(interaction.guild.id),

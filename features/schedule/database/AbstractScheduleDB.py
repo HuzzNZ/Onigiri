@@ -106,22 +106,19 @@ class AbstractScheduleDB:
         """
 
     @abstractmethod
-    async def update_guild(self, guild_id: int, guild: GuildScheduleConfig) -> GuildScheduleConfig:
+    async def update_guild(self, guild: GuildScheduleConfig) -> GuildScheduleConfig:
         """
         Updates a guild's configs.
 
-        :param guild_id: The ID of the guild's configs to update.
         :param guild: GuildScheduleConfig
         :return: GuildScheduleConfig
         """
 
     @abstractmethod
-    async def update_event(self, guild_id: int, event_id: str, event: Event) -> Event:
+    async def update_event(self, event: Event) -> Event:
         """
         Updates an event.
 
-        :param guild_id: The ID of the guild that the event is associated with.
-        :param event_id: The ID of the event to update.
         :param event: Event
         :return: Event
         """

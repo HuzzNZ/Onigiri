@@ -10,6 +10,7 @@ class GuildScheduleConfig:
     schedule_channel_id: int
     schedule_message_id_array: List[int]
     editor_role_id_array: List[int]
+    enabled: bool = True
     talent: str = ""
     description: str = ""
 
@@ -29,6 +30,7 @@ class GuildScheduleConfig:
             schedule_channel_id=d["schedule_channel_id"],
             schedule_message_id_array=schedule_message_id_array,
             editor_role_id_array=editor_role_id_array,
+            enabled=d.get("editors", True),
             talent=d.get("talent", ""),
             description=d.get("description", "")
         )
@@ -43,6 +45,7 @@ class GuildScheduleConfig:
             "schedule_channel_id": self.schedule_channel_id,
             "schedule_message_ids": self.schedule_message_id_array,
             "editor_role_ids": self.editor_role_id_array,
+            "enabled": self.enabled,
             "talent": self.talent,
             "description": self.description
         }

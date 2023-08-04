@@ -1,48 +1,10 @@
 from functools import wraps
-from typing import List
 
 import discord
-from discord import app_commands
 
 from exceptions import InvalidArgument
 from features.schedule.database import ScheduleDB
 from features.schedule.util import parse_date, parse_time
-
-
-async def type_autocomplete(_, current: str) -> List[app_commands.Choice[str]]:
-    """
-    Autocomplete for event types.
-    """
-    types = ['stream', 'video', 'event', 'release', 'other']
-    choices = []
-    for i in range(len(types)):
-        if current.lower() in types[i]:
-            choices.append(app_commands.Choice(name=types[i], value=types[i]))
-    return choices
-
-
-# Check Decorators
-
-
-def guild_registered():
-    def predicate(interaction: discord.Interaction) -> bool:
-        return True  # TODO
-
-    return app_commands.check(predicate)
-
-
-def author_is_editor():
-    def predicate(interaction: discord.Interaction) -> bool:
-        return True  # TODO
-
-    return app_commands.check(predicate)
-
-
-def author_is_admin():
-    def predicate(interaction: discord.Interaction) -> bool:
-        return True  # TODO
-
-    return app_commands.check(predicate)
 
 
 def validate_arguments(func):

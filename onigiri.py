@@ -10,8 +10,8 @@ from tools import *
 from tools.constants import LOG_HANDLER
 
 cogs = [
-    "features.schedule.cogs.schedule",
-    "features.general.cogs.general"
+    "features.schedule.cog",
+    "features.general.cog"
 ]
 
 

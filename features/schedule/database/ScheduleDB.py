@@ -75,10 +75,10 @@ class ScheduleDB(AbstractScheduleDB):
         self.events.insert_one(event.to_dict())
         return event
 
-    async def update_guild(self, guild_id: int, guild: GuildScheduleConfig) -> GuildScheduleConfig:
+    async def update_guild(self, guild: GuildScheduleConfig) -> GuildScheduleConfig:
         pass
 
-    async def update_event(self, guild_id: int, event_id: str, event: Event) -> Event:
+    async def update_event(self, event: Event) -> Event:
         pass
 
     async def delete_guild(self, guild_id: int) -> None:
