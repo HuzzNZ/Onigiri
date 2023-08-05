@@ -11,4 +11,32 @@ CANCELLED = "🚫  "
 
 NONE = "      "
 YT = "▶️"
-STASHED = "❌"
+STASH = "❌"
+
+EMOJIPEDIA = [
+    {
+        "past": "✅",
+        "confirmed": "▶️",
+        "unconfirmed": "💭"
+    },
+    {
+        "past": "🎞️",
+        "confirmed": "🎞️",
+        "unconfirmed": "🎞️"
+    },
+    {
+        "past": "🎆",
+        "confirmed": "🎆",
+        "unconfirmed": "🎆"
+    },
+    {
+        "past": "💿",
+        "confirmed": "💿",
+        "unconfirmed": "💿"
+    },
+    {
+        "past": "✅",
+        "confirmed": "▶️",
+        "unconfirmed": "💭"
+    },
+]

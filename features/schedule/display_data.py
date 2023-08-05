@@ -20,14 +20,15 @@ class Descriptions:
 
         self.schedule_channel = "The channel to host the schedule messages."
 
-        self.cmd_setup = dp + "First-time setup command. Sets the schedule channel and creates a new set of " \
-                              "schedule messages."
+        self.cmd_setup = dp + "Sets the schedule channel and creates a new set of schedule messages."
 
         self.cmd_add = dp + "Adds an event to the schedule."
+
+        self.cmd_refresh = dp + "Manually refreshes the schedule."
 
 
 class Messages:
     def __init__(self):
         self.setup_override = f"{WARNING}**You are currently overriding the schedule channel.** This will create new " \
                               "schedule messages in {channel}, and render the current schedule messages static " \
-                              "(can be safely deleted).",
+                              "(can be safely deleted)."

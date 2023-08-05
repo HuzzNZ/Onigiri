@@ -34,9 +34,7 @@ class Onigiri(commands.Bot):
         self.logger.info(f'Logged in as {self.user} (ID: {self.user.id})')
         for cog in cogs:
             await self.load_extension(cog)
-            self.logger.info(f"Loaded cogs {cog}!")
-        self.logger.info('Starting refresh loop!')
-        self.loop_refresh.start()
+            self.logger.info(f"Loaded cog {cog}!")
 
     async def on_member_join(self, member: discord.Member):
         self.logger.info(f'<{member.name} has joined {member.guild.name} ({member.guild.id}), '
@@ -124,21 +122,21 @@ class Onigiri(commands.Bot):
         self.logger.info(f"    ↳ {guild_id}: Total {total_length} characters.")
         return return_messages
 
-    @tasks.loop(minutes=5)
-    async def loop_refresh(self):
-        guilds = self.db.get_all_enabled_guilds()
-        self.logger.info("")
-        self.logger.info(f"<Auto-refreshing all enabled guilds... ({len(guilds)})>")
-        for guild in self.db.get_all_enabled_guilds():
-            try:
-                await self.update_schedule(guild.get("guild_id"))
-            except discord.Forbidden:
-                self.logger.warning(
-                    f"    ↳ {guild.get('guild_id')}: Missing permissions to update message.")
-            except discord.NotFound:
-                self.logger.warning(
-                    f"    ↳ {guild.get('guild_id')}: Schedule message or channel not found.")
+    # @tasks.loop(minutes=5)
+    # async def loop_refresh(self):
+    #     guilds = self.db.get_all_enabled_guilds()
+    #     self.logger.info("")
+    #     self.logger.info(f"<Auto-refreshing all enabled guilds... ({len(guilds)})>")
+    #     for guild in self.db.get_all_enabled_guilds():
+    #         try:
+    #             await self.update_schedule(guild.get("guild_id"))
+    #         except discord.Forbidden:
+    #             self.logger.warning(
+    #                 f"    ↳ {guild.get('guild_id')}: Missing permissions to update message.")
+    #         except discord.NotFound:
+    #             self.logger.warning(
+    #                 f"    ↳ {guild.get('guild_id')}: Schedule message or channel not found.")
 
-    @loop_refresh.before_loop
-    async def before_loop(self):
-        await self.wait_until_ready()
+    # @loop_refresh.before_loop
+    # async def before_loop(self):
+    #     await self.wait_until_ready()

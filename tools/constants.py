@@ -1,3 +1,5 @@
+import sys
+
 import pytz
 import logging
 
@@ -23,7 +25,7 @@ DEFAULT_DT_G = {
     'year': True, 'month': True, 'day': True
 }
 
-LOG_HANDLER = logging.StreamHandler()
+LOG_HANDLER = logging.StreamHandler(sys.stdout)
 fmt = logging.Formatter(
     '%(asctime)s [%(levelname)-8s] onigiri: %(message)s',
     "[%Y-%m-%d %H:%M:%S]"

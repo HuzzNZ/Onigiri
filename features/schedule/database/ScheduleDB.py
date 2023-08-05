@@ -76,7 +76,8 @@ class ScheduleDB(AbstractScheduleDB):
         return event
 
     async def update_guild(self, guild: GuildScheduleConfig) -> GuildScheduleConfig:
-        pass
+        self.guilds.replace_one({"guild_id": guild.guild_id}, guild.to_dict())
+        return guild
 
     async def update_event(self, event: Event) -> Event:
         pass

@@ -1,4 +1,5 @@
 import os
+import traceback
 from typing import Optional, Literal
 
 from dotenv import load_dotenv
@@ -21,56 +22,56 @@ if __name__ == "__main__":
     bot = Onigiri()
     tree = bot.tree
 
-    @tree.command(description="Must be run at least once! "
-                              "Sets up the bot, or edits schedule channel for the server.")
-    @app_commands.describe(channel="The channel to keep the schedule message in.")
-    @app_commands.guild_only()
-    @app_commands.default_permissions(manage_channels=True)
-    @app_commands.check(manage_channels)
-    async def setup(interaction: discord.Interaction, channel: discord.TextChannel):
-        await interaction.response.defer(ephemeral=True)
-
-        guild_id = interaction.guild.id
-        schedule_channel_id = channel.id
-
-        current_guild = interaction.client.db.get_guild(guild_id)
-
-        if current_guild:  # Has this guild been set up yet?
-            current_channel = current_guild.get("schedule_channel_id")
-
-            if current_channel == schedule_channel_id:  # Is the channel the same?
-                migrated = bool(current_guild.get("schedule_message_ids"))
-
-                if migrated:  # Does the guild need migration to multiple messages?
-                    current_messages = current_guild.get("schedule_message_ids")
-                    if not current_messages:
-                        current_messages = [current_guild.get("schedule_message_id")]
-                    reset = False
-                    try:
-                        for m in current_messages:
-                            channel = interaction.client.get_channel(current_channel)
-                            await channel.fetch_message(m)
-                    except (discord.NotFound, discord.Forbidden, AttributeError):
-                        reset = True
-
-                    if not reset:  # Can the message be reached?
-                        await interaction.followup.send(
-                            f"{NO}**The schedule message channel is already "
-                            f"<#{schedule_channel_id}>**."
-                        )
-                        return
-        try:  # Try to make new messages
-            messages = await interaction.client.new_schedule(guild_id, schedule_channel_id)
-        except discord.Forbidden:
-            await interaction.followup.send(
-                f"{NO}**Setup failed.** Check that the bot has the permissions to **view**, "
-                "and **send messages** in the correct channel."
-            )
-            return
-        await interaction.client.update_schedule(guild_id)
-        await interaction.followup.send(
-            f"{YES}**The schedule message channel has been set to <#{schedule_channel_id}>**, "
-            f"and new messages were created.\n> <{messages[0].jump_url}>")
+    # @tree.command(description="Must be run at least once! "
+    #                           "Sets up the bot, or edits schedule channel for the server.")
+    # @app_commands.describe(channel="The channel to keep the schedule message in.")
+    # @app_commands.guild_only()
+    # @app_commands.default_permissions(manage_channels=True)
+    # @app_commands.check(manage_channels)
+    # async def setup(interaction: discord.Interaction, channel: discord.TextChannel):
+    #     await interaction.response.defer(ephemeral=True)
+    #
+    #     guild_id = interaction.guild.id
+    #     schedule_channel_id = channel.id
+    #
+    #     current_guild = interaction.client.db.get_guild(guild_id)
+    #
+    #     if current_guild:  # Has this guild been set up yet?
+    #         current_channel = current_guild.get("schedule_channel_id")
+    #
+    #         if current_channel == schedule_channel_id:  # Is the channel the same?
+    #             migrated = bool(current_guild.get("schedule_message_ids"))
+    #
+    #             if migrated:  # Does the guild need migration to multiple messages?
+    #                 current_messages = current_guild.get("schedule_message_ids")
+    #                 if not current_messages:
+    #                     current_messages = [current_guild.get("schedule_message_id")]
+    #                 reset = False
+    #                 try:
+    #                     for m in current_messages:
+    #                         channel = interaction.client.get_channel(current_channel)
+    #                         await channel.fetch_message(m)
+    #                 except (discord.NotFound, discord.Forbidden, AttributeError):
+    #                     reset = True
+    #
+    #                 if not reset:  # Can the message be reached?
+    #                     await interaction.followup.send(
+    #                         f"{NO}**The schedule message channel is already "
+    #                         f"<#{schedule_channel_id}>**."
+    #                     )
+    #                     return
+    #     try:  # Try to make new messages
+    #         messages = await interaction.client.new_schedule(guild_id, schedule_channel_id)
+    #     except discord.Forbidden:
+    #         await interaction.followup.send(
+    #             f"{NO}**Setup failed.** Check that the bot has the permissions to **view**, "
+    #             "and **send messages** in the correct channel."
+    #         )
+    #         return
+    #     await interaction.client.update_schedule(guild_id)
+    #     await interaction.followup.send(
+    #         f"{YES}**The schedule message channel has been set to <#{schedule_channel_id}>**, "
+    #         f"and new messages were created.\n> <{messages[0].jump_url}>")
 
     @tree.command(description="Disables the bot on this server. (Does not remove event data!)")
     @app_commands.guild_only()
@@ -225,18 +226,18 @@ if __name__ == "__main__":
         async def all(self, interaction: discord.Interaction):
             await interaction.response.send_message(f"{NO}**Not implemented yet!**", ephemeral=True)
 
-    @tree.command(description="Manually refreshes the schedule message.")
-    @app_commands.guild_only()
-    @check_general
-    @app_commands.check(manage_messages)
-    async def refresh(interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        await interaction.client.update_schedule(interaction.guild.id)
-        await interaction.followup.send(content=f"{YES}**Schedule refreshed.**", ephemeral=True)
+    # @tree.command(description="Manually refreshes the schedule message.")
+    # @app_commands.guild_only()
+    # @check_general
+    # @app_commands.check(manage_messages)
+    # async def refresh(interaction: discord.Interaction):
+    #     await interaction.response.defer(ephemeral=True)
+    #     await interaction.client.update_schedule(interaction.guild.id)
+    #     await interaction.followup.send(content=f"{YES}**Schedule refreshed.**", ephemeral=True)
 
-    @tree.command(description="Pong!")
-    async def ping(interaction: discord.Interaction):
-        await interaction.response.send_message(f"{interaction.user.mention} Pong!", ephemeral=True)
+    # @tree.command(description="Pong!")
+    # async def ping(interaction: discord.Interaction):
+    #     await interaction.response.send_message(f"{interaction.user.mention} Pong!", ephemeral=True)
 
     @tree.command(name="help", description="Links to the documentation page for the bot.")
     async def help_command(interaction: discord.Interaction):
@@ -257,39 +258,39 @@ if __name__ == "__main__":
             ephemeral=True
         )
 
-    @tree.command(description="Adds an event to the schedule.")
-    @app_commands.describe(
-        title="The title of the event. Max 30 characters. Try to keep it short and concise!",
-        event_type="The type of the event. Defaults to stream.",
-        url="The URL/Link of an event. YouTube stream/premiere URLs can be picked up.",
-        date="The date of the event in JST. (e.g. Jul 12, 22/7/12, 7/12, 12 Jul 2022, October, 2023"
-             ", today, tomorrow, etc.)",
-        time="The time of the event in JST. (e.g. 8:00 pm, 20:00, 20, 3am, 27:00, now, etc.)")
-    @app_commands.guild_only()
-    @app_commands.autocomplete(event_type=type_ac)
-    @app_commands.rename(event_type="type")
-    @check_general
-    @check_date_time
-    @check_title
-    @check_url
-    @app_commands.check(manage_messages)
-    async def add(interaction: discord.Interaction,
-                  title: str, url: str = "", date: str = "", time: str = "",
-                  event_type: str = 'stream'):
-        dt, dt_g = None, None
-        if date:
-            dt = parse_date(date)
-            dt_g = parse_date(date, True)
-            if time:
-                dt = parse_time(time, dt)
-        t = parse_type(event_type)
-        event_id = interaction.client.db.add_event(interaction.guild_id, title, t, url, dt, dt_g)
-        try:
-            await interaction.response.send_message(f"{YES}**Event `{event_id}` added!**",
-                                                    ephemeral=True)
-        except discord.InteractionResponded:
-            await interaction.edit_original_response(content=f"{YES}**Event `{event_id}` added!**")
-        await interaction.client.update_schedule(interaction.guild.id)
+    # @tree.command(description="Adds an event to the schedule.")
+    # @app_commands.describe(
+    #     title="The title of the event. Max 30 characters. Try to keep it short and concise!",
+    #     event_type="The type of the event. Defaults to stream.",
+    #     url="The URL/Link of an event. YouTube stream/premiere URLs can be picked up.",
+    #     date="The date of the event in JST. (e.g. Jul 12, 22/7/12, 7/12, 12 Jul 2022, October, 2023"
+    #          ", today, tomorrow, etc.)",
+    #     time="The time of the event in JST. (e.g. 8:00 pm, 20:00, 20, 3am, 27:00, now, etc.)")
+    # @app_commands.guild_only()
+    # @app_commands.autocomplete(event_type=type_ac)
+    # @app_commands.rename(event_type="type")
+    # @check_general
+    # @check_date_time
+    # @check_title
+    # @check_url
+    # @app_commands.check(manage_messages)
+    # async def add(interaction: discord.Interaction,
+    #               title: str, url: str = "", date: str = "", time: str = "",
+    #               event_type: str = 'stream'):
+    #     dt, dt_g = None, None
+    #     if date:
+    #         dt = parse_date(date)
+    #         dt_g = parse_date(date, True)
+    #         if time:
+    #             dt = parse_time(time, dt)
+    #     t = parse_type(event_type)
+    #     event_id = interaction.client.db.add_event(interaction.guild_id, title, t, url, dt, dt_g)
+    #     try:
+    #         await interaction.response.send_message(f"{YES}**Event `{event_id}` added!**",
+    #                                                 ephemeral=True)
+    #     except discord.InteractionResponded:
+    #         await interaction.edit_original_response(content=f"{YES}**Event `{event_id}` added!**")
+    #     await interaction.client.update_schedule(interaction.guild.id)
 
     @tree.command(name="add-yt", description="Adds an event to the schedule using a YouTube URL.")
     @app_commands.describe(
@@ -611,7 +612,7 @@ if __name__ == "__main__":
 
         else:
             bot.logger.exception(error)
-            error_message = error.__traceback__
+            error_message = ''.join(traceback.TracebackException.from_exception(error).format())
 
         error_display = f"{NO}**Command `/{interaction.command.qualified_name}` failed**:\n```{error_message}```"
         try:
