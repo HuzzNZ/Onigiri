@@ -9,7 +9,7 @@ import pytz
 from dotenv import load_dotenv
 from pymongo import MongoClient
 
-from tools.constants import DEFAULT_DT_G
+DEFAULT_DT_G = {'year': False, "month": False, "day": False}
 
 load_dotenv()
 

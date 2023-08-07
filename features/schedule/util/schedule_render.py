@@ -1,9 +1,8 @@
 from datetime import datetime
 from typing import List, Tuple, Optional
 
-from features.schedule.constants import JST, NONE, DD, TR, EMOJIPEDIA, STASH, ED, YT_LOGO
+from features.schedule.constants import JST, NONE, DD, DR, TR, EMOJIPEDIA, STASH, ED, YT_LOGO
 from features.schedule.models import GuildScheduleConfig, Event
-from tools.constants import DR
 
 
 __all__ = ["render_schedule"]
