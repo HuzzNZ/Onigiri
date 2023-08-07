@@ -25,21 +25,25 @@ def validate_arguments(func):
             event_id = kwargs["event_id"]
             event = await db.get_event(interaction.guild.id, event_id)
             if not event:
-                raise InvalidArgument(F"No event with ID `{event_id}` was found.")
+                raise InvalidArgument(F"No event with ID \"{event_id}\" was found.")
 
         # Validate date / time
         time_capable = False
         parsed_date = None
+        if event:
+            time_capable = event.datetime_granularity.day
+            parsed_date = event.datetime
         if kwargs.get("date", ""):
             date = kwargs["date"]
             if event:
-                time_capable = event.datetime and event.datetime_granularity.day
-                parsed_date = event.datetime
+                new_parsed_date, new_parsed_date_granularity = parse_date(date)
+                time_capable = event.datetime and (event.datetime_granularity.day or new_parsed_date_granularity.day)
+                parsed_date = new_parsed_date or event.datetime
             else:
                 try:
                     parsed_date, parsed_date_granularity = parse_date(date)
                 except ValueError:
-                    raise InvalidArgument(f"Bad date input. `{date}` was not able to be parsed as a date.")
+                    raise InvalidArgument(f"Bad date input. \"{date}\" was not able to be parsed as a date.")
                 time_capable = parsed_date_granularity.day
         if kwargs.get("time", ""):
             if not time_capable:
@@ -48,7 +52,7 @@ def validate_arguments(func):
             try:
                 parse_time(time, parsed_date)
             except ValueError:
-                raise InvalidArgument(f"Bad time input. `{time}` was not able to be parsed as a time.")
+                raise InvalidArgument(f"Bad time input. \"{time}\" was not able to be parsed as a time.")
 
         # Validate title shorter than 30 characters, sanitize formatting
         if kwargs.get("title", ""):
@@ -64,11 +68,23 @@ def validate_arguments(func):
                 raise InvalidArgument(f"Note too long. Max 30 characters (Currently {len(note)}).")
             kwargs["note"] = sanitize_formatting(note)
 
+        if kwargs.get("talent", ""):
+            talent = kwargs["talent"]
+            if len(talent) > 30:
+                raise InvalidArgument(f"Talent name too long. Max 30 characters (Currently {len(talent)}).")
+            kwargs["note"] = sanitize_formatting(talent)
+
+        if kwargs.get("description", ""):
+            description = kwargs["description"]
+            if len(description) > 200:
+                raise InvalidArgument(f"Description too long. Max 200 characters (Currently {len(description)}).")
+            kwargs["note"] = sanitize_formatting(description)
+
         # Validate url
         if kwargs.get("url", ""):
             url: str = kwargs["url"]
             if not (url.startswith("http://") or url.startswith("https://")):
-                raise InvalidArgument(f"Invalid URL. URLs should begin with `http://` or `https://`.")
+                raise InvalidArgument(f"Invalid URL. URLs should begin with \"http://\" or \"https://\".")
 
         return await func(*args, **kwargs)
 

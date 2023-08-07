@@ -30,7 +30,7 @@ class GuildScheduleConfig:
             schedule_channel_id=d["schedule_channel_id"],
             schedule_message_id_array=schedule_message_id_array,
             editor_role_id_array=editor_role_id_array,
-            enabled=d.get("editors", True),
+            enabled=d.get("enabled", True),
             talent=d.get("talent", ""),
             description=d.get("description", "")
         )

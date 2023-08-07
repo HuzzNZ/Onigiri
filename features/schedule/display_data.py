@@ -7,6 +7,8 @@ class Descriptions:
     def __init__(self):
         self.title = "The title of the event. (Max: 30 characters)"
 
+        self.event_id = "The 4 digit numerical ID of the event."
+
         self.event_type = "The type of the event. (Default: stream)"
 
         self.url = "An URL associated with an event."
@@ -20,11 +22,60 @@ class Descriptions:
 
         self.schedule_channel = "The channel to host the schedule messages."
 
+        self.description = "The description of the schedule. Leave out to reset the description."
+
+        self.talent = "The talent of the schedule. Leave out to reset the talent."
+
+        self.editor_role = "The schedule editor role. Members with role can edit " \
+                           "the schedule (but not the configurations)."
+
         self.cmd_setup = dp + "Sets the schedule channel and creates a new set of schedule messages."
 
         self.cmd_add = dp + "Adds an event to the schedule."
 
         self.cmd_refresh = dp + "Manually refreshes the schedule."
+
+        self.cmd_config = dp + "A set of commands to adjust the configurations for this server."
+
+        self.cmd_config_status = dp + "Shows the configurations for this server."
+
+        self.cmd_config_enable = dp + "Enables the schedule feature."
+
+        self.cmd_config_disable = dp + "Disables the schedule feature."
+
+        self.cmd_config_desc = dp + "Edits the description of the schedule. (Max: 200 characters)"
+
+        self.cmd_config_talent = dp + "Edits the talent of the schedule. (Max: 30 characters)"
+
+        self.cmd_config_editor = dp + "Sets the schedule editor role."
+
+        self.cmd_config_reset_all = dp + "Resets ALL schedule events, and configuration as if the bot was just added."
+
+        self.cmd_config_reset_config = dp + "Resets configuration as if the bot was just added, but keeps all events."
+
+        self.cmd_config_reset_events = dp + "Resets ALL schedule events, but keeps all configuration."
+
+        self.cmd_edit = dp + "Edits an event. Only fields supplied will be edited."
+
+        self.cmd_delete = dp + "Deletes an event."
+
+        self.cmd_stash = dp + "Stashes an event."
+
+        self.cmd_unstash = dp + "Unstashes an event."
+
+        self.cmd_title = dp + "Sets the title of an event."
+
+        self.cmd_date = dp + "Sets the date of an event. Leave out to remove."
+
+        self.cmd_time = dp + "Sets the time of an event. Leave out to remove."
+
+        self.cmd_url = dp + "Sets the URL of an event. Leave out to remove."
+
+        self.cmd_note = dp + "Sets the note of an event. Leave out to remove."
+
+        self.cmd_type = dp + "Sets the type of an event. Leave out to remove."
+
+        self.cmd_history = dp + "Shows the history of schedule events on this server."
 
 
 class Messages:

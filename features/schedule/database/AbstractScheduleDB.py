@@ -171,12 +171,12 @@ class AbstractScheduleDB:
         """
 
     @abstractmethod
-    async def set_guild_description(self, guild_id: int, talent: str) -> None:
+    async def set_guild_description(self, guild_id: int, description: str) -> None:
         """
         Sets the description of a guild.
 
         :param guild_id: The ID of the guild.
-        :param talent: The talent of the guild.
+        :param description: The talent of the guild.
         :return: None
         """
 
@@ -222,7 +222,7 @@ class AbstractScheduleDB:
         """
 
     @abstractmethod
-    async def set_event_datetime(self, guild_id: int, event_id: str, dt: datetime.datetime) -> None:
+    async def set_event_datetime(self, guild_id: int, event_id: str, dt: Optional[datetime.datetime]) -> None:
         """
         Sets the datetime of an event.
 
@@ -251,17 +251,6 @@ class AbstractScheduleDB:
         :param guild_id: The ID of the guild that the event is associated to.
         :param event_id: The ID of the event.
         :param t: The type of the event.
-        :return: None
-        """
-
-    @abstractmethod
-    async def set_event_confirmed(self, guild_id: int, event_id: str, confirmed: bool) -> None:
-        """
-        Sets an event's confirmed status.
-
-        :param guild_id: The ID of the guild that the event is associated to.
-        :param event_id: The ID of the event.
-        :param confirmed: Event's confirmed status.
         :return: None
         """
 

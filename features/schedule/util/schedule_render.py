@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Tuple, Optional
 
-from features.schedule.constants import JST, NONE, DD, TR, EMOJIPEDIA, STASH, ED
+from features.schedule.constants import JST, NONE, DD, TR, EMOJIPEDIA, STASH, ED, YT_LOGO
 from features.schedule.models import GuildScheduleConfig, Event
 from tools.constants import DR
 
@@ -42,7 +42,7 @@ def render_headline(guild: GuildScheduleConfig) -> List[str]:
     content.append("")
     content.append(f"> Last refreshed <t:{int(datetime.now().timestamp())}:R>.")
     if not guild.enabled:
-        content.append("> ⛔  *Currently disabled.*")
+        content.append("> ⛔  **Currently disabled.**")
     return content
 
 
@@ -53,23 +53,25 @@ def render_past(past_events: List[Event]) -> List[str]:
     total_past_events = len(past_events)
     past_events = past_events[-display_count:]  # Get last x events from list
     content = [
-        f"🗂️  __**Past {len(past_events)} Event{'s' if len(past_events) != 1 else ''}**__  " +
-        (f"(See all {total_past_events} events with **`/history`**)" if total_past_events > display_count else "")
+        f"## 🗂️  Past {len(past_events)} Event{'s' if len(past_events) != 1 else ''}  "
+        # + (f"(See all {total_past_events} events with **`/history`**)" if total_past_events > display_count else "")
     ]
     for i, event in enumerate(past_events):
         is_last = i == len(past_events) - 1
-        newline_prefix = f"{NONE if is_last else DD}{' ' * 15}"
+        newline_prefix = f"{NONE if is_last else DD}{' ' * 14}"
         stash = "~~" if event.stashed else ""
         event_time_string, event_time_string_relative = format_event_time(event)
+        title_no_backslash = event.title.replace("\\", "")
+        title = event.title if not event.url else f'**[{title_no_backslash}](<{event.url}>)**'
+        if event.url:
+            title = title + "  🔗" if not ("youtu" in event.url and "be" in event.url) else title + f"  {YT_LOGO}"
         content.append(f"{DD}")
         content.append(
             f"{TR if is_last else DR}  ||`{event.event_id}`||  {EMOJIPEDIA[event.type]['past'] if not stash else STASH}"
             f"  **{stash}{event_time_string}"
             f"{('  ' + event_time_string_relative) if event_time_string_relative else ''}{stash}**"
         )
-        content.append(f"{newline_prefix}{stash}{event.title}{stash}")
-        if event.url:
-            content.append(f"{newline_prefix}{stash}<{event.url}>{stash}")
+        content.append(f"{newline_prefix}{stash}{title}{stash}")
         if event.note:
             content.append(f"{newline_prefix}*({event.note})*")
     return content
@@ -77,22 +79,25 @@ def render_past(past_events: List[Event]) -> List[str]:
 
 def render_next_up(next_event: Event) -> List[str]:
     content = []
-    newline_prefix = f"{DD}{' ' * 15}"
+    newline_prefix = f"{DD}{' ' * 14}"
     stash = "~~" if next_event.stashed else ""
     emoji = EMOJIPEDIA[next_event.type].get("confirmed" if next_event.url else 'unconfirmed') if not stash else STASH
     event_time_string, event_time_string_relative = format_event_time(next_event)
-    content.append("⏰  __**Next Up**__")
+
+    title_no_backslash = next_event.title.replace("\\", "")
+    title = next_event.title if not next_event.url else f'**[{title_no_backslash}](<{next_event.url}>)**'
+    if next_event.url:
+        title = title + "  🔗" if not ("youtu" in next_event.url and "be" in next_event.url) else title + f"  {YT_LOGO}"
+
+    content.append("## ⏰  Next Up")
     content.append(DD)
     content.append(
         f"{DR}  ||`{next_event.event_id}`||  {emoji}  "
         f"**{stash}{event_time_string}"
         f"{('  ' + event_time_string_relative) if event_time_string_relative else ''}{stash}**"
     )
-    if event_time_string_relative:
-        content.append(f"{DD}")
-    content.append(f"{newline_prefix}**{stash}{next_event.title}{stash}**")
-    if next_event.url:
-        content.append(f"{newline_prefix}{stash}<{next_event.url}>{stash}")
+    content.append(DD)
+    content.append(f"{newline_prefix}{stash}{title}{stash}")
     if next_event.note:
         content.append(f"{newline_prefix}*({next_event.note})*")
     return content
@@ -101,22 +106,26 @@ def render_next_up(next_event: Event) -> List[str]:
 def render_future(future_events: List[Event]) -> List[str]:
     if not future_events:
         return []
-    content = ["☁️  __**Upcoming**__"]
+    content = ["☁️  **Upcoming**"]
     for event in future_events:
-        newline_prefix = f"{DD}{' ' * 15}"
+        newline_prefix = f"{DD}{' ' * 14}"
         stash = "~~" if event.stashed else ""
         emoji = (EMOJIPEDIA[event.type].get('confirmed' if event.url else 'unconfirmed')) if not stash else STASH
         event_time_string, event_time_string_relative = format_event_time(event)
+
+        title_no_backslash = event.title.replace("\\", "")
+        title = event.title if not event.url else f'**[{title_no_backslash}](<{event.url}>)**'
+        if event.url:
+            title = title + "  🔗" if not ("youtu" in event.url and "be" in event.url) else title + f"  {YT_LOGO}"
+
         content.append(DD)
         content.append(
             f"{DR}  ||`{event.event_id}`||  {emoji}  {stash}**{event_time_string}"
             f"{('  ' + event_time_string_relative) if event_time_string_relative else ''}**" +
-            (f"  {event.title}" if not event_time_string_relative else '') + stash
+            (f"  {title}" if not event_time_string_relative else '') + stash
         )
         if event_time_string_relative:
-            content.append(f"{newline_prefix}{stash}{event.title}{stash}")
-        if event.url:
-            content.append(f"{newline_prefix}{stash}<{event.url}>{stash}")
+            content.append(f"{newline_prefix}{stash}{title}{stash}")
         if event.note:
             content.append(f"{newline_prefix}*({event.note})*")
     content.append(ED)
@@ -137,8 +146,13 @@ def classify_events(events: List[Event]) -> Tuple[List[Event], Optional[Event], 
     future_events.sort(key=lambda e: e.datetime)
     future_events.extend(unspecified_events)
     next_event = None
-    if future_events:
-        next_event = future_events.pop(0)
+    while not next_event:
+        if future_events:
+            n_event = future_events.pop(0)
+            if n_event.stashed:
+                past_events.append(n_event)
+            else:
+                next_event = n_event
     return past_events, next_event, future_events
 
 

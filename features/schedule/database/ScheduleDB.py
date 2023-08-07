@@ -80,55 +80,83 @@ class ScheduleDB(AbstractScheduleDB):
         return guild
 
     async def update_event(self, event: Event) -> Event:
-        pass
+        self.events.replace_one({"$and": [{"guild_id": event.guild_id, "event_id": event.event_id}]}, event.to_dict())
+        return event
 
     async def delete_guild(self, guild_id: int) -> None:
-        pass
+        self.guilds.delete_one({"guild_id": guild_id})
 
     async def delete_event(self, guild_id: int, event_id: str) -> None:
-        pass
+        self.events.delete_one({"$and": [{"guild_id": guild_id, "event_id": event_id}]})
 
     async def set_guild_enable(self, guild_id: int) -> None:
-        pass
+        self.guilds.find_one_and_update({"guild_id": guild_id}, {"$set": {"enabled": True}})
 
     async def set_guild_disable(self, guild_id: int) -> None:
-        pass
+        self.guilds.find_one_and_update({"guild_id": guild_id}, {"$set": {"enabled": False}})
 
     async def set_guild_talent(self, guild_id: int, talent: str) -> None:
-        pass
+        self.guilds.find_one_and_update({"guild_id": guild_id}, {"$set": {"talent": talent}})
 
-    async def set_guild_description(self, guild_id: int, talent: str) -> None:
-        pass
+    async def set_guild_description(self, guild_id: int, description: str) -> None:
+        self.guilds.find_one_and_update({"guild_id": guild_id}, {"$set": {"description": description}})
 
     async def set_guild_channel(self, guild_id: int, schedule_channel: int) -> None:
-        pass
+        self.guilds.find_one_and_update(
+            {"guild_id": guild_id},
+            {"$set": {"schedule_channel_id": schedule_channel}}
+        )
 
     async def set_guild_messages(self, guild_id: int, schedule_messages: List[int]) -> None:
-        pass
+        self.guilds.find_one_and_update(
+            {"guild_id": guild_id},
+            {"$set": {"schedule_message_ids": schedule_messages}}
+        )
 
     async def set_guild_editors(self, guild_id: int, editors: List[int]) -> None:
-        pass
+        self.guilds.find_one_and_update(
+            {"guild_id": guild_id},
+            {"$set": {"editor_role_ids": editors}}
+        )
 
     async def set_event_title(self, guild_id: int, event_id: str, title: str) -> None:
-        pass
+        self.events.find_one_and_update(
+            {'$and': [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"title": title}}
+        )
 
-    async def set_event_datetime(self, guild_id: int, event_id: str, dt: datetime.datetime) -> None:
-        pass
+    async def set_event_datetime(self, guild_id: int, event_id: str, dt: Optional[datetime.datetime]) -> None:
+        self.events.find_one_and_update(
+            {'$and': [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"datetime": dt}}
+        )
 
     async def set_event_datetime_granularity(self, guild_id: int, event_id: str, dt_g: DatetimeGranularity) -> None:
-        pass
+        self.events.find_one_and_update(
+            {'$and': [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"datetime_granularity": dt_g.to_dict()}}
+        )
 
     async def set_event_type(self, guild_id: int, event_id: str, t: Literal[0, 1, 2, 3, 4]) -> None:
-        pass
-
-    async def set_event_confirmed(self, guild_id: int, event_id: str, confirmed: bool) -> None:
-        pass
+        self.events.find_one_and_update(
+            {'$and': [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"type": t}}
+        )
 
     async def set_event_stashed(self, guild_id: int, event_id: str, stashed: bool) -> None:
-        pass
+        self.events.find_one_and_update(
+            {'$and': [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"stashed": stashed}}
+        )
 
     async def set_event_url(self, guild_id: int, event_id: str, url: str) -> None:
-        pass
+        self.events.find_one_and_update(
+            {'$and': [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"url": url}}
+        )
 
     async def set_event_note(self, guild_id: int, event_id: str, note: str) -> None:
-        pass
+        self.events.find_one_and_update(
+            {'$and': [{"guild_id": guild_id, "event_id": event_id}]},
+            {"$set": {"note": note}}
+        )

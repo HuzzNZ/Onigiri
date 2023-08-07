@@ -2,7 +2,7 @@
 
 Documentation page for the Onigiri Bot on discord.
 
-Developed by **@Huzz#0009**. ****You can find me on twitter [@HuzzuDesu](https://twitter.com/HuzzuDesu)! 
+Developed by **@HuzzuDesu**. You can find me on twitter [@HuzzuDesu](https://twitter.com/HuzzuDesu)! 
 
 # First-time setup
 
