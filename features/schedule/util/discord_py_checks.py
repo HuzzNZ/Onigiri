@@ -34,7 +34,7 @@ def author_is_editor():
             for role in interaction.user.roles:
                 if role.id == role_id:
                     return True
-        permissions = interaction.channel.permissions_for(interaction.user)
+        permissions = interaction.user.guild_permissions
         return permissions.manage_guild
 
     return app_commands.check(predicate)
@@ -42,7 +42,7 @@ def author_is_editor():
 
 def author_is_admin():
     async def predicate(interaction: discord.Interaction) -> bool:
-        permissions = interaction.channel.permissions_for(interaction.user)
+        permissions = interaction.user.guild_permissions
         return permissions.manage_guild
 
     return app_commands.check(predicate)

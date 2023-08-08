@@ -30,8 +30,7 @@ class Descriptions:
 
         self.talent = "The talent of the schedule. Leave out to reset the talent."
 
-        self.editor_role = "The schedule editor role. Members with role can edit " \
-                           "the schedule (but not the configurations)."
+        self.editor_role = "Users with this role can edit the schedule."
 
         self.cmd_setup = dp + "Sets the schedule channel and creates a new set of schedule messages."
 
@@ -53,7 +52,10 @@ class Descriptions:
 
         self.cmd_config_talent = dp + "Edits the talent of the schedule. (Max: 30 characters)"
 
-        self.cmd_config_editor = dp + "Sets the schedule editor role."
+        self.cmd_config_editor_add = dp + "Adds a role to the schedule editor roles."
+
+        self.cmd_config_editor_remove = dp + "Removes a role from the schedule editor roles. " \
+                                             "Leave out to remove all roles."
 
         self.cmd_config_reset_all = dp + "Resets ALL schedule events, and configuration as if the bot was just added."
 

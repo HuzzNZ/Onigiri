@@ -144,7 +144,7 @@ def classify_events(events: List[Event]) -> Tuple[List[Event], Optional[Event], 
     future_events.sort(key=lambda e: e.datetime)
     future_events.extend(unspecified_events)
     next_event = None
-    while not next_event:
+    while not next_event and future_events:
         if future_events:
             n_event = future_events.pop(0)
             if n_event.stashed:

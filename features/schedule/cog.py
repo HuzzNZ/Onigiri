@@ -58,16 +58,15 @@ class Schedule(GroupCog, name="schedule", description="Commands under the schedu
         self.logger = logging.getLogger("Onigiri.schedule")
         self.client = client
         self.db = ScheduleDB()
-        self.number_of_messages = 2
         self.update_schedule.start()
 
     def cog_unload(self) -> None:
         self.update_schedule.cancel()
 
-    async def create_schedule_messages(self, channel: discord.TextChannel) -> List[discord.Message]:
+    async def create_schedule_messages(self, channel: discord.TextChannel, num_msg: int = 2) -> List[discord.Message]:
         channel = self.client.get_channel(channel.id)
         messages = []
-        for i in range(self.number_of_messages):
+        for i in range(num_msg):
             messages.append(await channel.send(content="** **"))
         return messages
 
@@ -206,9 +205,23 @@ class Schedule(GroupCog, name="schedule", description="Commands under the schedu
         @author_is_admin()
         async def status(self, interaction: discord.Interaction):
             guild = await self.db.get_guild(interaction.guild.id)
-            # TODO: Nicer formatting
+            content = f"## Schedule configurations for __{interaction.guild.name}__:\n"
+            if guild.schedule_channel_id:
+                content += f"- **Schedule Channel**: <#{guild.schedule_channel_id}>\n"
+            if guild.schedule_message_id_array:
+                content += f"- **Schedule Messages**:\n"
+                for m in guild.schedule_message_id_array:
+                    content += f"  - https://discord.com/channels/" \
+                               f"{interaction.guild.id}/{guild.schedule_channel_id}/{m}\n"
+            if guild.editor_role_id_array:
+                content += f"- **Schedule Editor Roles**:\n"
+                for r in guild.editor_role_id_array:
+                    content += f"  - <@&{r}>\n"
+            content += f"- **Talent**: `{guild.talent or 'none'}`\n"
+            content += f"- **Description**: `{guild.description or 'none'}`\n"
+            content += f"- **Enabled**: {YES if guild.enabled else NO}\n"
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"{guild}", ephemeral=True)
+            await interaction.response.send_message(content, ephemeral=True)
 
         @app_commands.command(description=desc.cmd_config_enable)
         @guild_registered()
@@ -272,22 +285,55 @@ class Schedule(GroupCog, name="schedule", description="Commands under the schedu
             )
             await self.parent_cog.update_schedule_messages(interaction.guild.id)
 
-        @app_commands.command(description=desc.cmd_config_editor)
+        @app_commands.command(name="editor-add", description=desc.cmd_config_editor_add)
         @app_commands.describe(editor=desc.editor_role)
         @app_commands.rename(editor="role")
         @guild_registered()
         @guild_enabled()
         @author_is_admin()
-        async def editor(self, interaction: discord.Interaction, editor: discord.Role = None):
+        async def editor_add(self, interaction: discord.Interaction, editor: discord.Role):
+            editors = (await self.db.get_guild(interaction.guild.id)).editor_role_id_array
+            if editor.id not in editors:
+                await self.db.set_guild_editors(interaction.guild.id, editors + [editor.id])
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(
+                    f"{YES}Users with the **{editor.mention}** role can **now edit the schedule**.", ephemeral=True
+                )
+            else:
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(
+                    f"{NO}Users with the **{editor.mention}** role can **already edit the schedule**.", ephemeral=True
+                )
+
+        @app_commands.command(name="editor-remove", description=desc.cmd_config_editor_remove)
+        @app_commands.describe(editor=desc.editor_role)
+        @app_commands.rename(editor="role")
+        @guild_registered()
+        @guild_enabled()
+        @author_is_admin()
+        async def editor_remove(self, interaction: discord.Interaction, editor: discord.Role = None):
+            editors = (await self.db.get_guild(interaction.guild.id)).editor_role_id_array
             if editor:
-                await self.db.set_guild_editors(interaction.guild.id, [editor.id])
+                if editor.id in editors:
+                    editors.remove(editor.id)
+                    await self.db.set_guild_editors(interaction.guild.id, editors)
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(
+                        f"{YES}Users with the **{editor.mention}** role can **no longer edit the schedule**.",
+                        ephemeral=True
+                    )
+                else:
+                    # noinspection PyUnresolvedReferences
+                    await interaction.response.send_message(
+                        f"{NO}The **{editor.mention}** role is **not part of the schedule editor roles**.",
+                        ephemeral=True
+                    )
             else:
                 await self.db.set_guild_editors(interaction.guild.id, [])
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(
-                (f"{YES}The **schedule editor role** has been set to **{editor.mention}**." if editor else
-                 f"{YES}The **schedule editor role** has been reset."), ephemeral=True
-            )
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(
+                    f"{YES}The **schedule editor roles** have been reset.", ephemeral=True
+                )
 
         @app_commands.command(name="reset-all", description=desc.cmd_config_reset_all)
         @guild_registered()

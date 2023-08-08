@@ -81,13 +81,13 @@ def validate_arguments(func):
             talent = kwargs["talent"]
             if len(talent) > 30:
                 raise InvalidArgument(f"Talent name too long. Max 30 characters (Currently {len(talent)}).")
-            kwargs["note"] = sanitize_formatting(talent)
+            kwargs["talent"] = sanitize_formatting(talent)
 
         if kwargs.get("description", ""):
             description = kwargs["description"]
             if len(description) > 200:
                 raise InvalidArgument(f"Description too long. Max 200 characters (Currently {len(description)}).")
-            kwargs["note"] = sanitize_formatting(description)
+            kwargs["description"] = sanitize_formatting(description)
 
         # Validate url
         if kwargs.get("url", ""):

@@ -25,7 +25,7 @@ if __name__ == "__main__":
         if hasattr(error, "message"):
             error_message = error.message
         elif isinstance(error, discord.app_commands.CheckFailure):
-            error_message = "**Missing permissions.**"
+            error_message = "Missing permissions."
         else:
             bot.logger.exception(error)
             error_message = ''.join(traceback.TracebackException.from_exception(error).format())
