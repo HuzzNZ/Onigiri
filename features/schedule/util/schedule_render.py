@@ -4,7 +4,6 @@ from typing import List, Tuple, Optional
 from features.schedule.constants import JST, NONE, DD, DR, TR, EMOJIPEDIA, STASH, ED, YT_LOGO
 from features.schedule.models import GuildScheduleConfig, Event
 
-
 __all__ = ["render_schedule"]
 
 
@@ -49,7 +48,7 @@ def render_past(past_events: List[Event]) -> List[str]:
     if not past_events:
         return ["**No past events**."]
     display_count = 3
-    total_past_events = len(past_events)
+    # total_past_events = len(past_events)
     past_events = past_events[-display_count:]  # Get last x events from list
     content = [
         f"## 🗂️  Past {len(past_events)} Event{'s' if len(past_events) != 1 else ''}  "
@@ -164,11 +163,13 @@ def format_event_time(event: Event) -> Tuple[str, str]:
             base_str, time_format = "", ""
             # Day Specific
             if event.datetime_granularity.day:
-                if event.datetime.year == now.year and event.datetime.month == now.month and event.datetime.day == now.day:
+                if event.datetime.year == now.year and \
+                        event.datetime.month == now.month and event.datetime.day == now.day:
                     base_str = "Today"
                 else:
                     time_format += "%b %e"  # Jan 1
-                    if event.datetime.year != now.year and not (now.month == 12 and event.datetime.year - 1 == now.year):
+                    if event.datetime.year != now.year and \
+                            not (now.month == 12 and event.datetime.year - 1 == now.year):
                         time_format += ", %Y"  # Jan 1, 1990
             # Month Specific
             elif event.datetime_granularity.month:

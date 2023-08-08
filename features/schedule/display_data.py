@@ -7,11 +7,15 @@ class Descriptions:
     def __init__(self):
         self.title = "The title of the event. (Max: 30 characters)"
 
+        self.optional_title = "The title of the event. (Max: 30 characters, Default: The title of the YouTube video)"
+
         self.event_id = "The 4 digit numerical ID of the event."
 
         self.event_type = "The type of the event. (Default: stream)"
 
         self.url = "An URL associated with an event."
+
+        self.yt_url = "The YouTube URL associated with an event."
 
         self.note = "A note displayed under an event."
 
@@ -32,6 +36,8 @@ class Descriptions:
         self.cmd_setup = dp + "Sets the schedule channel and creates a new set of schedule messages."
 
         self.cmd_add = dp + "Adds an event to the schedule."
+
+        self.cmd_add_yt = dp + "Adds an event to the schedule from a YouTube URL."
 
         self.cmd_refresh = dp + "Manually refreshes the schedule."
 

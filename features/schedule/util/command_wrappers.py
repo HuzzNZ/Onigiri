@@ -1,21 +1,30 @@
 from functools import wraps
 
 import discord
+from discord.ui import View, button
 
+from api.youtube import YouTube, YouTubeURL
 from exceptions import InvalidArgument
+from features.schedule.constants import YT, CANCELLED
 from features.schedule.database import ScheduleDB
-from features.schedule.util import parse_date, parse_time
+from features.schedule.models import DatetimeGranularity, Event
+from features.schedule.util import parse_date, parse_time, parse_type
+from tools.constants import YES
 
 
 def validate_arguments(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
         interaction = None
+        schedule_cog = None
         for arg in args:
             if isinstance(arg, discord.Interaction):
                 interaction = arg
                 break
-        assert isinstance(interaction, discord.Interaction)
+        for arg in args:
+            from features.schedule.cog import Schedule
+            if isinstance(arg, Schedule):
+                schedule_cog = arg
 
         db = ScheduleDB()
         event = None
@@ -85,7 +94,74 @@ def validate_arguments(func):
             url: str = kwargs["url"]
             if not (url.startswith("http://") or url.startswith("https://")):
                 raise InvalidArgument(f"Invalid URL. URLs should begin with \"http://\" or \"https://\".")
+            try:
+                yt = YouTube(YouTubeURL.unsafe(url))
 
+                class YouTubeConfirmation(View):
+                    def __init__(self):
+                        super().__init__(timeout=120)
+                        self.use_all = None
+
+                    @button(label='Use all', style=discord.ButtonStyle.blurple)
+                    async def delete(self, *_):
+                        self.use_all = True
+                        self.stop()
+
+                    @button(label='Use URL only', style=discord.ButtonStyle.secondary)
+                    async def cancel(self, *_):
+                        self.use_all = False
+                        self.stop()
+
+                view = YouTubeConfirmation()
+                yt_title = yt.title[:24] + "..." if len(yt.title) > 27 else yt.title
+                title = (yt_title if not kwargs.get('title') else kwargs.get('title')) if not event else event.title
+                note = ("" if not kwargs.get("note") else kwargs.get("note")) if not event else event.note
+                url = yt.url.get_short_url()
+                # noinspection PyUnresolvedReferences
+                await interaction.response.send_message(
+                    f"## {YT}  YouTube video found.\n** **\n**Would you like to " +
+                    (f"edit event `{event.event_id}`" if event else "create the event") +
+                    f" using the following details?**\n"
+                    f"- **Timestamp**: <t:{int(yt.start_time.timestamp())}:f>  <t:{int(yt.start_time.timestamp())}:R>\n"
+                    f"- **Title**: {title}\n" +
+                    (f"- **Note**: {note}\n" if note else "") + f"- **URL**: {url}\n"
+                                                                f"- **Type**: `{yt.content_type}`\n",
+                    view=view, ephemeral=True
+                )
+                timeout = await view.wait()
+                if not timeout:
+                    kwargs["url"] = url
+                    if view.use_all:
+                        dt_g = DatetimeGranularity(True, True, True)
+                        db = ScheduleDB()
+                        new_event = Event(
+                            guild_id=interaction.guild.id,
+                            event_id=event.event_id if event else await db.get_available_event_id(interaction.guild.id),
+                            title=title,
+                            datetime=yt.start_time,
+                            datetime_granularity=dt_g,
+                            type=parse_type(yt.content_type),
+                            note=note,
+                            url=url
+                        )
+                        if event:
+                            await db.update_event(new_event)
+                            await interaction.edit_original_response(
+                                content=f"{YES}**Event `{event.event_id}` updated**.", view=None
+                            )
+                        else:
+                            event = await db.create_event(new_event)
+                            await interaction.edit_original_response(
+                                content=f"{YES}**Event `{event.event_id}` created**.", view=None
+                            )
+                        await schedule_cog.update_schedule_messages(interaction.guild.id)
+                        return
+                    else:
+                        await interaction.edit_original_response(content="** **", view=None)
+                else:
+                    await interaction.edit_original_response(content=f"{CANCELLED}**Timed out.**", view=None)
+            except ValueError:
+                pass
         return await func(*args, **kwargs)
 
     return wrapper

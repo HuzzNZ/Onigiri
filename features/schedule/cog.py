@@ -8,10 +8,10 @@ from discord.ext.commands import GroupCog
 from discord.ui import button, View
 
 from exceptions import InvalidArgument
-from features.schedule.exceptions import MessageUnsendable, MessageUnreachable
 from features.schedule.constants import YES, THINKING, CANCELLED, NO, WARNING
 from features.schedule.database import ScheduleDB
 from features.schedule.display_data import Descriptions, Messages
+from features.schedule.exceptions import MessageUnsendable, MessageUnreachable
 from features.schedule.models import Event, GuildScheduleConfig, DatetimeGranularity
 from features.schedule.util import type_autocomplete, guild_registered, author_is_editor, validate_arguments, \
     author_is_admin, parse_date, parse_time, parse_type, render_schedule, guild_enabled
@@ -150,6 +150,7 @@ class Schedule(GroupCog, name="schedule", description="Commands under the schedu
             async def cancel(self, *_):
                 self.confirm = False
                 self.stop()
+
         guild = await self.db.get_guild(interaction.guild.id)
         # Confirmation for overriding schedule channel
         if guild and guild.schedule_channel_id:
@@ -347,9 +348,32 @@ class Schedule(GroupCog, name="schedule", description="Commands under the schedu
             url=url
         )
         await self.db.create_event(event)
-        # noinspection PyUnresolvedReferences
-        await interaction.response.send_message(f"{YES}**Event `{event.event_id}` created.**", ephemeral=True)
+        try:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(f"{YES}**Event `{event.event_id}` created.**", ephemeral=True)
+        except discord.InteractionResponded:
+            await interaction.edit_original_response(content=f"{YES}**Event `{event.event_id}` created.**")
         await self.update_schedule_messages(interaction.guild.id)
+
+    # ================
+    # /schedule add-yt
+    # ================
+    # noinspection PyUnusedLocal
+    @app_commands.command(name="add-yt", description=desc.cmd_add_yt)
+    @app_commands.describe(title=desc.optional_title, url=desc.yt_url)
+    @app_commands.default_permissions(send_messages=True)
+    @guild_registered()
+    @guild_enabled()
+    @author_is_editor()
+    @validate_arguments
+    async def add_event_from_yt(self, interaction: discord.Interaction, url: str, title: str = ""):
+        try:
+            # noinspection PyUnresolvedReferences
+            await interaction.response.send_message(f"{NO}**Not a valid YouTube URL.**", ephemeral=True)
+        except discord.InteractionResponded:
+            await interaction.edit_original_response(
+                content=f"{NO}**Invalid option.** Use \"Use all\" when adding events using /schedule add-yt."
+            )
 
     # ==============
     # /schedule edit
@@ -421,6 +445,7 @@ class Schedule(GroupCog, name="schedule", description="Commands under the schedu
             async def cancel(self, *_):
                 self.delete = False
                 self.stop()
+
         view = DeleteConfirmation()
         # noinspection PyUnresolvedReferences
         await interaction.response.send_message(
@@ -513,12 +538,17 @@ class Schedule(GroupCog, name="schedule", description="Commands under the schedu
     @validate_arguments
     async def set_event_url(self, interaction: discord.Interaction, event_id: str, url: str = ""):
         await self.db.set_event_url(interaction.guild.id, event_id, url)
-        if url:
+        try:
             # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"{YES}**URL of event `{event_id}` edited.**", ephemeral=True)
-        else:
-            # noinspection PyUnresolvedReferences
-            await interaction.response.send_message(f"{YES}**URL of event `{event_id}` removed.**", ephemeral=True)
+            await interaction.response.send_message(
+                f"{YES}**URL of event `{event_id}` edited.**" if url else
+                f"{YES}**URL of event `{event_id}` removed.**", ephemeral=True
+            )
+        except discord.InteractionResponded:
+            await interaction.edit_original_response(
+                content=f"{YES}**URL of event `{event_id}` edited.**" if url else
+                f"{YES}**URL of event `{event_id}` removed.**"
+            )
         await self.update_schedule_messages(interaction.guild.id)
 
     # ==============

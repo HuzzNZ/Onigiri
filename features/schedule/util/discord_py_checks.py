@@ -12,6 +12,7 @@ def guild_registered():
             return True
         else:
             raise GuildNotRegistered
+
     return app_commands.check(predicate)
 
 
@@ -21,6 +22,7 @@ def guild_enabled():
         if guild.enabled:
             return True
         raise GuildNotEnabled
+
     return app_commands.check(predicate)
 
 
@@ -34,6 +36,7 @@ def author_is_editor():
                     return True
         permissions = interaction.channel.permissions_for(interaction.user)
         return permissions.manage_guild
+
     return app_commands.check(predicate)
 
 
@@ -41,4 +44,5 @@ def author_is_admin():
     async def predicate(interaction: discord.Interaction) -> bool:
         permissions = interaction.channel.permissions_for(interaction.user)
         return permissions.manage_guild
+
     return app_commands.check(predicate)

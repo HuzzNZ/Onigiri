@@ -2,21 +2,20 @@ import os
 import traceback
 from typing import Optional, Literal
 
-from dotenv import load_dotenv
-
 import discord
 from discord.ext import commands
 from discord.ext.commands import Context, Greedy
+from dotenv import load_dotenv
 
-from tools.constants import *
 from onigiri import Onigiri
+from tools.constants import *
 
 load_dotenv()
-
 
 if __name__ == "__main__":
     bot = Onigiri()
     tree = bot.tree
+
 
     @tree.error
     async def error_handler(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
@@ -41,6 +40,7 @@ if __name__ == "__main__":
             except discord.InteractionResponded:
                 await interaction.followup.send(content=error_display, ephemeral=True)
 
+
     @bot.command()
     @commands.guild_only()
     async def auto_role_enable(ctx: Context):
@@ -55,6 +55,7 @@ if __name__ == "__main__":
         ctx.bot.db.set_auto_role_status(ctx.guild.id, True)
         await ctx.send(f"{YES}**Enabled** auto-role upon user verification for **{ctx.guild.name}**.")
 
+
     @bot.command()
     @commands.guild_only()
     async def auto_role_disable(ctx: Context):
@@ -68,6 +69,7 @@ if __name__ == "__main__":
             ctx.bot.ofs_auto_role_status = False
         ctx.bot.db.set_auto_role_status(ctx.guild.id, False)
         await ctx.send(f"{YES}**Disabled** auto-role upon user verification for **{ctx.guild.name}**.")
+
 
     @bot.command()
     @commands.guild_only()
@@ -93,6 +95,7 @@ if __name__ == "__main__":
                 f"between database and memory. DB: **{f'{YES}Enabled' if enabled_db else f'{NO}Disabled'}**, "
                 f"Memory: **{f'{YES}Enabled' if enabled_memory else f'{NO}Disabled'}**."
             )
+
 
     @bot.command()
     @commands.guild_only()
@@ -130,5 +133,6 @@ if __name__ == "__main__":
                 ret += 1
 
         await ctx.send(f"Synced the tree to {ret}/{len(guilds)}.")
+
 
     bot.run(os.getenv("WAKAME"))

@@ -25,6 +25,7 @@ class Onigiri(commands.Bot):
         self.ofs_auto_role_role_id = 679653891595304985
         self.ofs_auto_role_status = self.db.get_auto_role_status(self.ofs_auto_role_guild_id)
         self.test_auto_role_status = self.db.get_auto_role_status(547571343986524180)
+        # noinspection PyTypeChecker
         super().__init__(command_prefix=commands.when_mentioned_or("$"), intents=intents)
 
     async def setup_hook(self):

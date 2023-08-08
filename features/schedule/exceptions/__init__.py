@@ -1,4 +1,4 @@
-from features.schedule.exceptions.GuildNotRegistered import GuildNotRegistered
 from features.schedule.exceptions.GuildNotEnabled import GuildNotEnabled
+from features.schedule.exceptions.GuildNotRegistered import GuildNotRegistered
 from features.schedule.exceptions.MessageUnreachable import MessageUnreachable
 from features.schedule.exceptions.MessageUnsendable import MessageUnsendable

@@ -1,9 +1,12 @@
-import sys
 import logging
+import sys
+
+import pytz
 
 YES = "🟢  "
 WARNING = "🟠  "
 NO = "🔴  "
+JST = pytz.timezone("Asia/Tokyo")
 
 LOG_HANDLER = logging.StreamHandler(sys.stdout)
 fmt = logging.Formatter(
