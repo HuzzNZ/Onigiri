@@ -1,22 +1,22 @@
 from calendar import monthrange
 from datetime import datetime, timedelta
-from typing import Union
+from typing import Tuple, Optional, Literal
 
 import pytz
 
-from tools.constants import JST, MONTHS
+from features.schedule.constants import JST, MONTHS
+from features.schedule.models import DatetimeGranularity
 
 
-def parse_date(date_str: str, g: bool = False) -> Union[datetime, None, dict]:
+def parse_date(date_str: str) -> Tuple[Optional[datetime], DatetimeGranularity]:
     """
     Parses a datetime given a date string.
 
     :param date_str: The date string to parse
-    :param g: Optional flag to return a dict of the granularity of the date string.
     :return: Union[datetime, None, dict]
     """
-    if not date_str and not g:
-        return None
+    if not date_str:
+        return None, DatetimeGranularity()
 
     date_str = date_str.lower()
     now = datetime.now(JST)
@@ -78,12 +78,10 @@ def parse_date(date_str: str, g: bool = False) -> Union[datetime, None, dict]:
             elif 2000 <= n <= 2099:
                 year = n
 
-    if g:
-        return {
-            'year': True,
-            'month': bool(month),
-            'day': bool(day)
-        }
+    if not (year + month + day):
+        raise ValueError
+
+    granularity = DatetimeGranularity(year=True, month=bool(month), day=bool(day))
 
     if not month:
         month = 12
@@ -94,12 +92,14 @@ def parse_date(date_str: str, g: bool = False) -> Union[datetime, None, dict]:
     if not day:
         day = monthrange(year, month)[1]
 
-    return datetime(year, month, day, 14, 59, 59, 0).replace(tzinfo=pytz.utc).astimezone(JST)
+    return datetime(year, month, day, 14, 59, 59, 0).replace(tzinfo=pytz.utc).astimezone(JST), granularity
 
 
-def parse_time(time_str: str, dt: datetime = None) -> Union[datetime, None]:
-    if not dt or not time_str:
-        return None
+def parse_time(time_str: str, dt: datetime) -> datetime:
+    if not dt:
+        raise ValueError('No datetime object has been specified.')
+    if not time_str:
+        return dt
     time_str = time_str.lower()
     h, m = None, None
 
@@ -171,7 +171,7 @@ def parse_time(time_str: str, dt: datetime = None) -> Union[datetime, None]:
         return dt.replace(second=0, minute=m, hour=h) + timedelta(days=day_offset)
 
 
-def parse_type(event_type: str) -> int:
+def parse_type(event_type: str) -> Literal[0, 1, 2, 3, 4]:
     match event_type:
         case "stream":
             return 0
