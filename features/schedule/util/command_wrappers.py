@@ -8,7 +8,7 @@ from exceptions import InvalidArgument
 from features.schedule.constants import YT, CANCELLED
 from features.schedule.database import ScheduleDB
 from features.schedule.models import DatetimeGranularity, Event
-from features.schedule.util import parse_date, parse_time, parse_type
+from features.schedule.util.datetime_parsers import parse_date, parse_time, parse_type
 from tools.constants import YES
 
 
